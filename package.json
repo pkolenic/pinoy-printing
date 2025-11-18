@@ -1,0 +1,37 @@
+{
+  "name": "pinoy-printing",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start:frontend": "dotenv -- npm start --prefix frontend",
+    "start:backend": "dotenv -- npm run dev --prefix backend",
+    "start:dev": "npm run start:frontend & npm run start:backend",
+    "install-all": "npm install --prefix frontend && npm install --prefix backend",
+    "test:frontend": "cd frontend && npm test",
+    "test:backend": "cd backend && npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pkolenic/pinoy-printing.git"
+  },
+  "keywords": [
+    "react",
+    "redux",
+    "node",
+    "express",
+    "monorepo",
+    "mongodb",
+    "mongoose"
+  ],
+  "author": "Patrick Kolenic",
+  "license": "MIT",
+  "private": true,
+  "bugs": {
+    "url": "https://github.com/pkolenic/pinoy-printing/issues"
+  },
+  "homepage": "https://github.com/pkolenic/pinoy-printing#readme",
+  "devDependencies": {
+    "dotenv-cli": "^11.0.0"
+  }
+}

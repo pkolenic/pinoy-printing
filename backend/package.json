@@ -1,0 +1,32 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "Node/Express backend server",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "keywords": [
+    "node",
+    "express",
+    "mongodb",
+    "mongoose"
+  ],
+  "author": "Patrick Kolenic",
+  "license": "MIT",
+  "dependencies": {
+    "colors": "^1.4.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "mongodb": "^7.0.0",
+    "mongoose": "^8.20.0",
+    "redis": "^5.9.0"
+  },
+  "devDependencies": {
+    "migrate-mongo": "^12.1.3"
+  }
+}
