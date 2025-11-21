@@ -1,9 +1,11 @@
 import express from 'express';
 import path from 'path';
+import apiRoutes from './routes/api.js';
 
 const router = express.Router();
 
 // Mount sub-routers
+router.use('/api', apiRoutes);
 
 // GET current path
 const __serverDirectory = process.cwd();
