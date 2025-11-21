@@ -9,6 +9,7 @@ export default defineConfig({
 
   server: {
     open: true,
+    port: parseInt(process.env.VITE_FRONTEND_PORT || '5173', 10),
   },
 
   test: {
