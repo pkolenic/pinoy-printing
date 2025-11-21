@@ -1,64 +1,65 @@
 import "./App.css"
-import { Counter } from "./features/counter/Counter"
-import { Quotes } from "./features/quotes/Quotes"
-import logo from "./logo.svg"
+import {useAuth0} from '@auth0/auth0-react';
+import LoginButton from './components/LoginButton';
+import LogoutButton from './components/LogoutButton';
+import Profile from './pages/Profile';
 
-export const App = () => (
-  <div className="App">
-    <header className="App-header">
-      <img src={logo} className="App-logo" alt="logo" />
-      <Counter />
-      <p>
-        Edit <code>src/App.tsx</code> and save to reload.
-      </p>
-      <Quotes />
-      <span>
-        <span>Learn </span>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          React
-        </a>
-        <span>, </span>
-        <a
-          className="App-link"
-          href="https://redux.js.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Redux
-        </a>
-        <span>, </span>
-        <a
-          className="App-link"
-          href="https://redux-toolkit.js.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Redux Toolkit
-        </a>
-        <span>, </span>
-        <a
-          className="App-link"
-          href="https://react-redux.js.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          React Redux
-        </a>
-        ,<span> and </span>
-        <a
-          className="App-link"
-          href="https://reselect.js.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Reselect
-        </a>
-      </span>
-    </header>
-  </div>
-)
+
+export function App() {
+  const {isAuthenticated, isLoading, error} = useAuth0();
+  const companyTitle = import.meta.env.VITE_APP_TITLE || 'Sample0';
+
+  if (isLoading) {
+    return (
+      <div className="app-container">
+        <div className="loading-state">
+          <div className="loading-text">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="app-container">
+        <div className="error-state">
+          <div className="error-title">Oops!</div>
+          <div className="error-message">Something went wrong</div>
+          <div className="error-sub-message">{error.message}</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="app-container">
+      <div className="main-card-wrapper">
+        <img
+          src="https://cdn.auth0.com/quantum-assets/dist/latest/logos/auth0/auth0-lockup-en-ondark.png"
+          alt="Auth0 Logo"
+          className="auth0-logo"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+          }}
+        />
+        <h1 className="main-title">{companyTitle}</h1>
+
+        {isAuthenticated ? (
+          <div className="logged-in-section">
+            <div className="logged-in-message">✅ Successfully authenticated!</div>
+            <h2 className="profile-section-title">Your Profile</h2>
+            <div className="profile-card">
+              <Profile/>
+            </div>
+            <LogoutButton/>
+          </div>
+        ) : (
+          <div className="action-card">
+            <p className="action-text">Get started by signing in to your account</p>
+            <LoginButton/>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
