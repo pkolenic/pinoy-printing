@@ -6,4 +6,4 @@ const CustomerProductSchema = new mongoose.Schema({
     price: {type: Number, required: true},
 });
 
-export default mongoose.model('CustomerProduct', CustomerProductSchema);
+export default mongoose.models.CustomerProduct || mongoose.model('CustomerProduct', CustomerProductSchema);

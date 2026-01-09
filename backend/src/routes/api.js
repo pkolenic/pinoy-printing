@@ -1,5 +1,6 @@
 import express from 'express';
 import jwtCheck from "../middleware/auth.js";
+import orderRoutes from "./orders.js";
 import userRoutes from "./users.js";
 
 const router = express.Router();
@@ -11,6 +12,7 @@ router.get('/', (req, res) => {
 });
 
 // Mount user routes
+router.use('/orders', orderRoutes);
 router.use('/users', userRoutes);
 
 // Export the router
