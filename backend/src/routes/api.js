@@ -8,7 +8,7 @@ router.use(jwtCheck);
 
 // Dummy Route for testing
 router.get('/', (req, res) => {
-    res.send('API is working!');
+    res.status(200).json({message: 'API is working!'});
 });
 
 // Mount user routes
