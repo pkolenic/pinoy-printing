@@ -33,5 +33,9 @@
   "homepage": "https://github.com/pkolenic/pinoy-printing#readme",
   "devDependencies": {
     "dotenv-cli": "^11.0.0"
+  },
+  "dependencies": {
+    "auth0": "^5.1.0",
+    "multer": "^2.0.2"
   }
 }

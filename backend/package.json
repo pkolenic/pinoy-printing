@@ -23,6 +23,7 @@
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "express-oauth2-jwt-bearer": "^1.7.1",
+    "lodash.startcase": "^4.4.0",
     "mongodb": "^7.0.0",
     "mongoose": "^8.20.0",
     "redis": "^5.9.0"

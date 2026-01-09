@@ -1,6 +1,8 @@
 import express from 'express';
-
 import {connectDB, disconnectDB} from './services/db.js';
+import errorHandler from "./middleware/error.js";
+import logger from "./middleware/logger.js";
+import notFound from "./middleware/notFound.js";
 import redis from './services/redis.js';
 import routes from './routes.js';
 
@@ -15,11 +17,16 @@ await redis.connect();
 const app = express();
 
 // MIDDLEWARE
+app.use(express.json()); // Body Parser Middleware
+app.use(express.urlencoded({ extended: false }));
+app.use(logger);
 
 // ROUTES
 app.use(routes);
 
 // ERROR HANDLERS
+app.use(notFound);
+app.use(errorHandler);
 
 // START SERVER
 const server = app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
