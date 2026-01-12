@@ -13,6 +13,12 @@ import {
 import jwtCheck from "../middleware/auth.js";
 import checkPermissions from "../middleware/checkPermissions.js";
 import createAttachMiddleware from "../middleware/models.js";
+import {
+    createEmailRules,
+    updateEmailRules,
+    phoneRules,
+    validate
+} from "../middleware/validation.js";
 
 import { User } from '../models/index.js';
 
@@ -36,6 +42,9 @@ router.get('/:userId',
 /* Create a new user */
 router.post('/',
   checkPermissions('create:users'),
+  ...createEmailRules,
+  ...phoneRules,
+  validate,
   createUser,
 );
 
@@ -70,6 +79,9 @@ router.delete('/:userId',
 /* Update a user */
 router.put('/:userId',
   checkPermissions('update:users', true),
+  ...updateEmailRules,
+  ...phoneRules,
+  validate,
   attachUser,
   updateUser,
 );

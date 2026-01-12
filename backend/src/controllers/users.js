@@ -17,7 +17,7 @@ import {
  * @returns {Promise<*>}
  */
 export const createUser = async (req, res, next) => {
-  const { email, name, phone, addresses = [], rawRole } = req.body;
+  const { username, email, name, phone, addresses = [], role: rawRole } = req.body;
 
   // Validate the user role
   const canSetRole = req.auth.payload.permissions?.includes('update:user-roles');
@@ -28,13 +28,19 @@ export const createUser = async (req, res, next) => {
     email,
     email_verified: true,
     name,
-    password: 'qwerty123$', // Recommendation: Use a generated random password in 2026
-    connection: 'Username-Password-Authentication',
+    username,
+    connection: process.env.AUTH0_AUTHORIZATION_DB,
     app_metadata: {
       role,
     },
     user_metadata: {},
   };
+
+  if (phone) {
+    // TODO - add phone number verification
+    userData.phone_number = phone;
+    userData.phone_verified = true;
+  }
 
   try {
     // 2. Create Auth0 user
@@ -192,29 +198,49 @@ export const getUsers = async (req, res, next) => {
  */
 export const updateUser = async (req, res, next) => {
   try {
-    const { user } = req;
-    const updates = { ...req.body };
-
-    // 1. Authorization Logic: Handle role changes separately
+    const { user, body: updates } = req;
+    const management = getManagementClient();
     const userPermissions = req.auth.payload.permissions || [];
 
-    if (updates.role) {
-      if (userPermissions.includes('update:user-roles')) {
-        // Update role in Auth0
-        const management = getManagementClient();
-        const role = getValidatedRole(updates.role);
-        await management.users.roles.assign(user.sub, { roles: [getRoleId(role)] });
-        await management.users.update(user.sub, { app_metadata: { role } });
-      } else {
-        // Strip role from updates if permission is missing
-        delete updates.role;
-      }
+    // 1. Separate updates into categories
+    const { email, phone, role, ...otherUpdates } = updates;
+    const dbUpdates = { ...updates };
+
+    // 2. Handle Contact Updates (Must be separate calls in Auth0)
+    if (email) {
+      await management.users.update(user.sub, { email, email_verified: true });
+    }
+    if (phone) {
+      await management.users.update(user.sub, { phone_number: phone, phone_verified: true });
     }
 
-    // 2. Use .set to sync allowed fields
-    user.set(updates);
+    // 3. Handle Metadata & Basic Info (Combined into one Call)
+    const generalAuthData = { ...otherUpdates }
 
-    // 3. Persist changes
+    if (role && userPermissions.includes('update:user-roles')) {
+      // Manage Auth0 Roles
+      const validatedRole = getValidatedRole(role);
+      const roleId = getRoleId(validatedRole);
+      // Fetch current Auth0 user roles
+      const currentRoles = await management.users.roles.list(user.sub);
+      const currentRoleIds = currentRoles.data.map(r => r.id);
+      // Delete existing roles from Auth0 User
+      if (currentRoleIds.length > 0) {
+          await management.users.roles.delete(user.sub, { roles: currentRoleIds });
+      }
+      // Assign the new role to Auth0 User
+      await management.users.roles.assign(user.sub, { roles: [roleId] });
+      generalAuthData.app_metadata = { ...generalAuthData.app_metadata, role: validatedRole };
+    } else {
+      delete dbUpdates.role; // Prevent unauthorized DB update
+    }
+
+    if(Object.keys(generalAuthData).length > 0) {
+      await management.users.update(user.sub, generalAuthData);
+    }
+
+    // 5. Finalize local Database Sync
+    user.set(dbUpdates);
     await user.save();
 
     return res.status(200).json(user);

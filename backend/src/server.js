@@ -24,7 +24,7 @@ app.use(logger);
 // ROUTES
 app.use(routes);
 
-// ERROR HANDLERS
+// ERROR HANDLERSI
 app.use(notFound);
 app.use(errorHandler);
 
