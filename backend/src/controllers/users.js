@@ -37,7 +37,6 @@ export const createUser = async (req, res, next) => {
   };
 
   if (phone) {
-    // TODO - add phone number verification
     userData.phone_number = phone;
     userData.phone_verified = true;
   }

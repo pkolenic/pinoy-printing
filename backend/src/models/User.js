@@ -38,7 +38,6 @@ UserSchema.virtual('orders', {
 
 export default mongoose.models.User || mongoose.model('User', UserSchema);
 
-// TODO - populate the role field with the correct permissions
 export const UserRole = {
   'admin': process.env.AUTH0_ADMIN_ROLE_ID,
   'customer': process.env.AUTH0_CUSTOMER_ROLE_ID,
