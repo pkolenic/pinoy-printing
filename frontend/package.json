@@ -17,6 +17,11 @@
   },
   "dependencies": {
     "@auth0/auth0-react": "^2.9.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@fontsource/roboto": "^5.2.9",
+    "@mui/icons-material": "^7.3.7",
+    "@mui/material": "^7.3.7",
     "@reduxjs/toolkit": "^2.6.1",
     "http-proxy-middleware": "^3.0.5",
     "react": "^19.1.0",
