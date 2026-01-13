@@ -1,7 +1,7 @@
 import "./App.css"
 import {useAuth0} from '@auth0/auth0-react';
-import LoginButton from './components/LoginButton';
 import LogoutButton from './components/LogoutButton';
+
 import Profile from './pages/Profile';
 
 
@@ -31,6 +31,11 @@ export function App() {
     );
   }
 
+  if (!isAuthenticated) {
+    const {loginWithRedirect} = useAuth0();
+    loginWithRedirect().then(() => {});
+  }
+
   return (
     <div className="app-container">
       <div className="main-card-wrapper">
@@ -44,21 +49,14 @@ export function App() {
         />
         <h1 className="main-title">{companyTitle}</h1>
 
-        {isAuthenticated ? (
-          <div className="logged-in-section">
-            <div className="logged-in-message">✅ Successfully authenticated!</div>
-            <h2 className="profile-section-title">Your Profile</h2>
-            <div className="profile-card">
-              <Profile/>
-            </div>
-            <LogoutButton/>
+        <div className="logged-in-section">
+          <div className="logged-in-message">✅ Successfully authenticated!</div>
+          <h2 className="profile-section-title">Your Profile</h2>
+          <div className="profile-card">
+            <Profile/>
           </div>
-        ) : (
-          <div className="action-card">
-            <p className="action-text">Get started by signing in to your account</p>
-            <LoginButton/>
-          </div>
-        )}
+          <LogoutButton/>
+        </div>
       </div>
     </div>
   );
