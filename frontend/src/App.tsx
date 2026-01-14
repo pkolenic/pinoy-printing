@@ -29,12 +29,13 @@ export function App() {
     );
   }
 
-  if (!isAuthenticated) {
-    const {loginWithRedirect} = useAuth0();
-    loginWithRedirect().then(() => {});
+  if (isAuthenticated) {
+    return (
+      <Shop />
+    );
   }
 
-  return (
-    <Shop />
-  );
+  // If not authenticated, redirect to login page
+  const {loginWithRedirect} = useAuth0();
+  loginWithRedirect().then(() => {});
 }
