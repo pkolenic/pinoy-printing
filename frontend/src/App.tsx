@@ -1,41 +1,27 @@
 import "./App.css"
-import {useAuth0} from '@auth0/auth0-react';
-
+import { useAuthSession } from "./hooks/useAuthSession";
+import { StatusPanel } from "./layout/StatusPanel";
 import Shop from './pages/Shop';
 
-
 export function App() {
-  const {isAuthenticated, isLoading, error} = useAuth0();
+  const {isAuthenticated, isLoading, errorMessage, userProfile, token, loginWithRedirect} = useAuthSession();
 
   if (isLoading) {
-    return (
-      <div className="app-container">
-        <div className="loading-state">
-          <div className="loading-text">Loading...</div>
-        </div>
-      </div>
-    );
+    return <StatusPanel title="Loading..." isLoading/>;
   }
 
-  if (error) {
-    return (
-      <div className="app-container">
-        <div className="error-state">
-          <div className="error-title">Oops!</div>
-          <div className="error-message">Something went wrong</div>
-          <div className="error-sub-message">{error.message}</div>
-        </div>
-      </div>
-    );
+  if (errorMessage) {
+    return <StatusPanel title="Oops!" message="Something went wrong" subMessage={errorMessage}/>;
   }
 
-  if (isAuthenticated) {
-    return (
-      <Shop />
-    );
+  if (isAuthenticated && token && userProfile) {
+    return <Shop/>;
   }
 
-  // If not authenticated, redirect to login page
-  const {loginWithRedirect} = useAuth0();
-  loginWithRedirect().then(() => {});
+  // Redirect if not authenticated
+  if (!isAuthenticated) {
+    loginWithRedirect().then();
+  }
+
+  return null;
 }

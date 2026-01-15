@@ -6,6 +6,8 @@ import {
   useState,
 } from 'react';
 import {useAuth0} from "@auth0/auth0-react";
+import { useAppDispatch } from "../app/hooks.ts";
+import { clearToken } from "../features/auth/auth.ts";
 
 import AppBar from '@mui/material/AppBar';
 import Avatar from '@mui/material/Avatar';
@@ -40,6 +42,8 @@ function ElevationScroll(props: Props) {
 }
 
 export default function ShopAppBar(props: Props) {
+  const dispatch = useAppDispatch();
+
   const companyTitle = import.meta.env.VITE_APP_TITLE || 'Sample0';
   const {
     logout,
@@ -57,6 +61,7 @@ export default function ShopAppBar(props: Props) {
       handleCloseUserMenu();
     },
     'Logout': () => {
+      dispatch(clearToken());
       logout({logoutParams: {returnTo: window.location.origin}}).catch(console.error);
     }
   }
