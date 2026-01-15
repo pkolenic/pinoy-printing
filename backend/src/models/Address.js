@@ -13,15 +13,21 @@ export const AddressSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-AddressSchema.virtual('isPrimary').get(function() {
-  const parent = this.parent();
+AddressSchema.virtual('isPrimary')
+  .get(function () {
+    const parent = this.parent();
 
-  // 1. Safety check: Does the parent exist and have the primaryAddressId field?
-  // This prevents issues when AddressSchema is used in OrderSchema or other models.
-  if (!parent || !parent.primaryAddressId) {
-    return false;
-  }
+    // 1. Safety check: Does the parent exist and have the primaryAddressId field?
+    // This prevents issues when AddressSchema is used in OrderSchema or other models.
+    if (!parent || !parent.primaryAddressId) {
+      return false;
+    }
 
-  // 2. Standard comparison for User model
-  return parent.primaryAddressId.equals(this._id);
-});
+    // 2. Standard comparison for User model
+    return parent.primaryAddressId.equals(this._id);
+  })
+  .set(function (value) {
+    // Store the incoming value in a temporary/transient property
+    // Mongoose will not save this to the database.
+    this._isPrimaryInput = value;
+  });

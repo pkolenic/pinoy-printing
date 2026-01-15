@@ -40,13 +40,36 @@ UserSchema.virtual('orders', {
   justOne: false,
 });
 
-UserSchema.pre('save', function (next) {
-  const addresses = this.get('addresses');
-  const currentPrimary = this.get('primaryAddressId');
+// UserSchema.pre('save', function (next) {
+//   const addresses = this.get('addresses');
+//   const currentPrimary = this.get('primaryAddressId');
+//
+//   if (addresses && addresses.length > 0 && !currentPrimary) {
+//     this.set('primaryAddressId', addresses[0]._id);
+//   }
+//   next();
+// });
 
-  if (addresses && addresses.length > 0 && !currentPrimary) {
-    this.set('primaryAddressId', addresses[0]._id);
+UserSchema.pre('validate', function (next) {
+  // If no addresses exist, clear the primary pointer
+  if (!this.addresses || this.addresses.length === 0) {
+    this.primaryAddressId = undefined;
+    return next();
   }
+
+  // 1. Check if the user is explicitly setting a new primary via the isPrimary flag
+  // Note: We use the virtual/transient 'isPrimary' field from the payload
+  const newPrimary = this.addresses.find(addr => addr._isPrimaryInput === true);
+
+  if (newPrimary) {
+    this.primaryAddressId = newPrimary._id;
+  }
+  // 2. If no address is marked primary, but the current primaryAddressId is missing or invalid
+  else if (!this.primaryAddressId || !this.addresses.id(this.primaryAddressId)) {
+    // Default to the first address in the array
+    this.primaryAddressId = this.addresses[0]._id;
+  }
+
   next();
 });
 
