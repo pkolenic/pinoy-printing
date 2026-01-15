@@ -323,7 +323,22 @@ export const createAddress = async (req, res, next) => {
 export const deleteAddress = async (req, res, next) => {
   try {
     const { user } = req;
-    user.addresses.pull({ _id: req.params.addressId });
+    const addressIdToDelete = req.params.addressId;
+
+    // 1. Remove the address from the user's addresses array
+    user.addresses.pull({ _id: addressIdToDelete });
+
+    // 2. Check if the deleted address was the primary one
+    // Note: Use .equals() for comparing Mongoose ObjectIds safely
+    if (user.primaryAddressId && user.primaryAddressId.equals(addressIdToDelete)) {
+      // Option A: Set to the next available address (Auto-reassign)
+      if (user.addresses.length > 0) {
+        user.primaryAddressId = user.addresses[0]?._id;
+      } else {
+        user.primaryAddressId = undefined;
+      }
+    }
+
     await user.save();
     return res.status(204).end();
   } catch (error) {

@@ -18,6 +18,10 @@ const UserSchema = new mongoose.Schema({
       message: 'Each of your addresses must have a unique name (e.g., "Home", "Work").'
     }
   },
+  primaryAddressId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: false,
+  },
   role: {
     type: String,
     required: true,
@@ -34,6 +38,16 @@ UserSchema.virtual('orders', {
   localField: '_id',
   foreignField: 'customer',
   justOne: false,
+});
+
+UserSchema.pre('save', function (next) {
+  const addresses = this.get('addresses');
+  const currentPrimary = this.get('primaryAddressId');
+
+  if (addresses && addresses.length > 0 && !currentPrimary) {
+    this.set('primaryAddressId', addresses[0]._id);
+  }
+  next();
 });
 
 export default mongoose.models.User || mongoose.model('User', UserSchema);
