@@ -49,7 +49,10 @@ export const createUser = async (req, res, next) => {
     // 2.b. Set the Auth0 user's role
     await management.users.roles.assign(auth0User.user_id, { roles: [getRoleId(role)] });
 
-    // 3. Create the MongoDB user in one step
+    // 3. Handle Primary Address Logic
+    const primaryIndex = addresses.findIndex(addr => addr.isPrimary === true);
+
+    // 4. Create the MongoDB user
     // Mongoose handles the subdocument creation for the addresses array automatically
     const newUser = new User({
       name: auth0User.name,
@@ -59,10 +62,19 @@ export const createUser = async (req, res, next) => {
       role,
       addresses,
     });
+
+    // Link the primaryAddressId to the generated ID of the selected address
+    if (primaryIndex !== -1) {
+      newUser.primaryAddressId = newUser.addresses[primaryIndex]._id;
+    } else if (newUser.addresses.length > 0) {
+      // Optional: Default to the first address if none marked primary
+      newUser.primaryAddressId = newUser.addresses[0]._id;
+    }
+
     // Persist the new user to the database
     await newUser.save();
 
-    // 4. Update Auth0 with local user id
+    // 5. Update Auth0 with local user id
     await management.users.update(auth0User.user_id, { app_metadata: { id: newUser.id } });
 
     return res.status(201).json(newUser);
@@ -202,7 +214,7 @@ export const updateUser = async (req, res, next) => {
     const userPermissions = req.auth.payload.permissions || [];
 
     // 1. Separate updates into categories
-    const { email, phone, role, ...otherUpdates } = updates;
+    const { email, phone, role, addresses, orders, ...otherUpdates } = updates;
     const dbUpdates = { ...updates };
 
     // 2. Handle Contact Updates (Must be separate calls in Auth0)
@@ -238,8 +250,24 @@ export const updateUser = async (req, res, next) => {
       await management.users.update(user.sub, generalAuthData);
     }
 
-    // 5. Finalize local Database Sync
+    // 4. Local Database Sync & Primary Address Logic
+    // Step A: Find the index of the address marked as primary in the request payload
+    const primaryIndex = updates.addresses?.findIndex(addr => addr.isPrimary === true);
+
+    // Step B: Synchronize the local 'user' document with the updates.
+    // This updates the addresses array in memory and generates _ids for new items instantly.
     user.set(dbUpdates);
+
+    // Step C: Update the primaryAddressId reference based on the found index
+    if (primaryIndex !== undefined && primaryIndex !== -1) {
+      // Use the newly generated or existing _id from the memory-updated array
+      user.primaryAddressId = user.addresses[primaryIndex]._id;
+    } else if (updates.addresses && updates.addresses.length === 0) {
+      // Clear the primary pointer if the user deleted all addresses
+      user.primaryAddressId = undefined;
+    }
+
+    // 5. Save the final state to MongoDB
     await user.save();
 
     return res.status(200).json(user);
@@ -301,11 +329,21 @@ export const getUser = async (req, res, next) => {
 export const createAddress = async (req, res, next) => {
   try {
     const { user } = req;
-    // 1. Create a new address
-    const newAddress = user.addresses.create(req.body);
+    const addressData = req.body;
+
+    // 1. Create the new address subdocument
+    const newAddress = user.addresses.create(addressData);
+
     // 2. Push the new address to the user's addresses array'
     user.addresses.push(newAddress);
-    // 3. Save the user
+
+    // 3. Handle Primary Address Logic
+    // If the flag is present, or if this is the user's first address
+    if (addressData.isPrimary || user.addresses.length === 1) {
+      user.primaryAddressId = newAddress._id;
+    }
+
+    // 4. Save the user
     await user.save();
     return res.status(201).json(newAddress);
   } catch (error) {
@@ -356,18 +394,25 @@ export const deleteAddress = async (req, res, next) => {
 export const updateAddress = async (req, res, next) => {
   try {
     const { user } = req;
+    const { addressId } = req.params;
+    const updates = req.body;
 
     // 1. Locate the specified address within the user's addresses array
-    const address = user.addresses.id(req.params.addressId);
+    const address = user.addresses.id(addressId);
 
     if (!address) {
       return res.status(404).json({ error: 'Address not found' });
     }
 
     // 2. Update the address fields using .set()
-    address.set(req.body);
+    address.set(updates);
 
-    // 3. SAve the user to persist the changes
+    // 3. Handle Primary Address Logic
+    if (updates.isPrimary === true) {
+      user.primaryAddressId = address._id;
+    }
+
+    // 4. Save the user to persist the changes
     await user.save();
 
     return res.status(200).json(address);

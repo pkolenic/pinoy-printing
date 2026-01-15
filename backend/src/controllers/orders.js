@@ -5,7 +5,7 @@ export const createOrder = async (req, res, next) => {
     const { user } = req;
 
     // Pick the address: either from request or user's first address
-    const selectedAddress = req.address || user.addresses[0];
+    const selectedAddress = req.address || user.addresses.id(user.primaryAddressId) || user.addresses[0];
 
     if (!selectedAddress) {
       return res.status(400).json({ message: 'Shipping address is required' });
