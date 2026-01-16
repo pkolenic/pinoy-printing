@@ -53,8 +53,10 @@ export const createUser = async (req, res, next) => {
     // Mongoose handles the subdocument creation for the addresses array automatically
     const newUser = new User({
       name: auth0User.name,
+      username: auth0User.username,
       email: auth0User.email,
       sub: auth0User.user_id,
+      picture: auth0User.picture,
       phone,
       role,
       addresses,
@@ -239,6 +241,10 @@ export const updateUser = async (req, res, next) => {
       await management.users.update(user.sub, generalAuthData);
     }
 
+    // Sync the user's picture from Auth0 to the local database
+    const auth0User = await management.users.get(user.sub);
+    dbUpdates.picture = auth0User.picture;
+
     // 4. Local Database Sync
     user.set(dbUpdates);
 
@@ -287,7 +293,11 @@ export const getUser = async (req, res, next) => {
   try {
     const { user } = req;
     await user.populate('orders');
-    return res.status(200).json(user);
+
+    // TODO - will be moving over to using the Auth0 user as the sole user model in the future.
+    const management = getManagementClient();
+    const auth0User = await management.users.get(user.sub);
+    return res.status(200).json({ ...user.toObject(), picture: auth0User.picture });
   } catch (error) {
     return next(error);
   }

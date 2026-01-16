@@ -3,7 +3,9 @@ import { AddressSchema } from "./Address.js";
 import './Order.js';
 
 const UserSchema = new mongoose.Schema({
+  picture: { type: String, required: false },
   name: { type: String, required: true },
+  username: { type: String, required: true },
   sub: { type: String, required: true },
   email: { type: String, required: true },
   phone: { type: String, required: false },
@@ -39,16 +41,6 @@ UserSchema.virtual('orders', {
   foreignField: 'customer',
   justOne: false,
 });
-
-// UserSchema.pre('save', function (next) {
-//   const addresses = this.get('addresses');
-//   const currentPrimary = this.get('primaryAddressId');
-//
-//   if (addresses && addresses.length > 0 && !currentPrimary) {
-//     this.set('primaryAddressId', addresses[0]._id);
-//   }
-//   next();
-// });
 
 UserSchema.pre('validate', function (next) {
   // If no addresses exist, clear the primary pointer
