@@ -1,16 +1,10 @@
+import { Fragment, useState } from 'react';
+import { CssBaseline } from '@mui/material';
+import { LoadingPanel, MessagePanel } from './components';
+import { ShopAppBar  } from './layout';
+import { Profile, Shop} from './pages';
+import { useAuthSession } from "./hooks";
 import "./App.css"
-import {
-  Fragment,
-  useState,
-} from 'react';
-import CssBaseline from '@mui/material/CssBaseline';
-import ShopAppBar from './layout/ShopAppBar.tsx';
-import { StatusPanel } from "./layout/StatusPanel";
-import Shop from './pages/Shop';
-import ProfileDialog from './pages/userProfile/ProfileDialog.tsx';
-
-import { useAuthSession } from "./hooks/useAuthSession";
-
 
 export function App() {
   const {
@@ -32,11 +26,11 @@ export function App() {
 
   const renderContent = () => {
     if (isLoading) {
-      return <StatusPanel title="Loading..." isLoading/>;
+      return <LoadingPanel />;
     }
 
     if (errorMessage) {
-      return <StatusPanel title="Oops!" message="Something went wrong" subMessage={errorMessage}/>;
+      return <MessagePanel severity="error" title="Something went wrong" message={errorMessage} />;
     }
 
     if (isAuthenticated && token && userProfile) {
@@ -48,7 +42,7 @@ export function App() {
           <Shop/>
 
           {isProfileOpen && (
-            <ProfileDialog
+            <Profile
               onClose={() => setIsProfileOpen(false)}
             />
           )}

@@ -50,7 +50,7 @@ const StyledInputBase = styled(InputBase)(({theme}) => ({
   },
 }));
 
-export default function SearchBox() {
+export const SearchBox = () => {
   return (
     <Search>
       <SearchIconWrapper>

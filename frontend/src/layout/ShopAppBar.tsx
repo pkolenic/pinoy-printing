@@ -5,21 +5,22 @@ import {
   ReactElement,
   useState,
 } from 'react';
-import { useAuthSession } from "../hooks/useAuthSession";
+import { useAuthSession } from "../hooks";
 
-import AppBar from '@mui/material/AppBar';
-import Avatar from '@mui/material/Avatar';
-import Box from '@mui/material/Box';
-import Container from '@mui/material/Container';
-import IconButton from '@mui/material/IconButton';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
-import Toolbar from '@mui/material/Toolbar';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
-import useScrollTrigger from '@mui/material/useScrollTrigger';
-
-import SearchBox from '../components/SearchBox';
+import {
+  AppBar,
+  Avatar,
+  Box,
+  Container,
+  IconButton,
+  Menu,
+  MenuItem,
+  Toolbar,
+  Tooltip,
+  Typography,
+  useScrollTrigger
+} from '@mui/material';
+import { SearchBox } from '../components';
 
 interface Props {
   children?: ReactElement<{ elevation?: number }>;
@@ -40,8 +41,8 @@ function ElevationScroll(props: Props) {
     : null;
 }
 
-export default function ShopAppBar(props: Props) {
-  const { onProfileClick } = props;
+export const ShopAppBar = (props: Props) => {
+  const {onProfileClick} = props;
 
   const {
     handleLogout,
@@ -99,7 +100,7 @@ export default function ShopAppBar(props: Props) {
                   alignItems: 'center',
                   flexGrow: {xs: 0, lg: 1},
                   mb: {xs: 1, lg: 0},
-              }}
+                }}
               >
                 <Box sx={{flexGrow: 0}}>
                   <Tooltip title="Open settings">
@@ -153,9 +154,9 @@ export default function ShopAppBar(props: Props) {
       </ElevationScroll>
       <Toolbar
         sx={{
-          pt: { xs: 2, lg: 0 },
-          pb: { xs: 2, lg: 0 },
-          minHeight: { xs: '120px;', lg: '64px' },
+          pt: {xs: 2, lg: 0},
+          pb: {xs: 2, lg: 0},
+          minHeight: {xs: '120px;', lg: '64px'},
         }}
       />
     </Fragment>

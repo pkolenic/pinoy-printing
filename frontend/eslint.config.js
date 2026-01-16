@@ -70,7 +70,7 @@ const eslintConfig = config(
               name: "react-redux",
               importNames: ["useSelector", "useStore", "useDispatch"],
               message:
-                "Please use pre-typed versions from `src/app/hooks.ts` instead.",
+                "Please use pre-typed versions from `src/hooks` instead.",
             },
           ],
         },

@@ -3,16 +3,15 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { skipToken } from "@reduxjs/toolkit/query/react";
 import { SerializedError } from "@reduxjs/toolkit";
 import { FetchBaseQueryError } from "@reduxjs/toolkit/query";
-import { useAppDispatch, useAppSelector } from "../app/hooks";
-import { setToken, clearToken } from "../features/auth/auth.ts";
-import { useGetUserQuery } from '../features/user/user.ts';
+import { useAppDispatch, useAppSelector } from './index.ts'
+import { authFeature, userFeature } from "../features";
 
 export const useAuthSession = () => {
   const {
     isAuthenticated,
     isLoading,
     error,
-    user,
+    user: auth0User,
     getAccessTokenSilently,
     loginWithRedirect,
     logout
@@ -27,14 +26,14 @@ export const useAuthSession = () => {
     setIsLoggingOut(true);
     logout({logoutParams: {returnTo: window.location.origin}})
       .then(() => {
-        dispatch(clearToken());
+        dispatch(authFeature.clearToken());
       });
   };
 
   useEffect(() => {
     if (isAuthenticated && !token && !isLoggingOut) {
       getAccessTokenSilently()
-        .then(t => dispatch(setToken(t)))
+        .then(t => dispatch(authFeature.setToken(t)))
         .catch(err => {
           // Only log errors that aren't expected during logout
           if (err.error !== 'missing_refresh_token') {
@@ -44,8 +43,8 @@ export const useAuthSession = () => {
     }
   }, [isAuthenticated, token, dispatch, getAccessTokenSilently]);
 
-  const profile = useGetUserQuery(
-    (isAuthenticated && token && user?.account?.id) ? user.account.id : skipToken
+  const profile = userFeature.useGetUserQuery(
+    (isAuthenticated && token && auth0User?.account?.id) ? auth0User.account.id : skipToken
   );
 
   const getErrorMessage = (err: FetchBaseQueryError | SerializedError | Error | undefined): string => {

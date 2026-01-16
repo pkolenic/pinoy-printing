@@ -5,24 +5,28 @@ import {
   ChangeEvent,
   SyntheticEvent,
 } from 'react';
-import { useAuthSession } from "../../hooks/useAuthSession";
-import { useUpdateUserMutation } from "../../features/user/user.ts";
+import { useAuthSession } from "../../../hooks";
+import { userFeature } from '../../../features'
 
 import {
   Alert,
-  Box,
-  CircularProgress,
-  Typography,
   Avatar,
+  Box,
   Button,
-  IconButton,
-  TextField,
-  Stack,
+  CircularProgress,
   Divider,
+  IconButton,
   Snackbar,
+  TextField,
+  Typography,
+  Stack,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
-import { PhoneNumberInput } from "../../components/PhoneNumberInput";
+import {
+  LoadingPanel,
+  MessagePanel,
+  PhoneNumberInput,
+} from "../../../components";
 
 interface UserProfileData {
   username: string;
@@ -33,7 +37,7 @@ interface UserProfileData {
 }
 
 export function ProfileTab() {
-  const [updateUser, {isLoading: isUpdating}] = useUpdateUserMutation();
+  const [updateUser, {isLoading: isUpdating}] = userFeature.useUpdateUserMutation();
   const {userProfile, isLoading, errorMessage} = useAuthSession();
   const [isEditing, setIsEditing] = useState(false);
   const [userData, setUserData] = useState<UserProfileData | null>(null);
@@ -123,36 +127,15 @@ export function ProfileTab() {
 
   // Handle loading and error states
   if (isLoading) {
-    return (
-      <Box sx={{
-        p: 4,
-        maxWidth: 450,
-        margin: 'auto',
-        bgcolor: 'background.paper',
-        boxShadow: 3,
-        borderRadius: 2,
-        textAlign: 'center'
-      }}>
-        <CircularProgress/>
-        <Typography>Loading profile...</Typography>
-      </Box>
-    );
+    return (<LoadingPanel message="Loading profile..." />);
   }
 
   if (errorMessage) {
-    return (
-      <Box sx={{p: 4, maxWidth: 450, margin: 'auto', bgcolor: 'background.paper', boxShadow: 3, borderRadius: 2}}>
-        <Alert severity="error">{errorMessage}</Alert>
-      </Box>
-    );
+    return (<MessagePanel severity="error" title="Error" message={errorMessage} />);
   }
 
   if (!userData || !formData) {
-    return (
-      <Box sx={{p: 4, maxWidth: 450, margin: 'auto', bgcolor: 'background.paper', boxShadow: 3, borderRadius: 2}}>
-        <Alert severity="info">No user data found.</Alert>
-      </Box>
-    );
+    return (<MessagePanel severity="info" message="No user data found." />);
   }
 
   return (

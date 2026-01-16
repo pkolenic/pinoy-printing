@@ -23,7 +23,7 @@ type GetUsersParams = {
   sortBy?: string; // e.g., "name" or "-name"
 }
 
-export const user = createApi({
+export const userSlice = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl: '/api/users',
     prepareHeaders: (headers, {getState}) => {
@@ -82,4 +82,4 @@ export const {
   useGetUsersQuery,
   useGetUserQuery,
   useUpdateUserMutation,
-} = user;
+} = userSlice;

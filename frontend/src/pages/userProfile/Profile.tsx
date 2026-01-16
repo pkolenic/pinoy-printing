@@ -1,6 +1,4 @@
-import {
-  useState,
-} from "react";
+import { useState } from "react";
 
 import {
   Dialog,
@@ -15,22 +13,22 @@ import {
   ListItemText,
 } from '@mui/material';
 import {
-  ProfileTab,
-} from "./index";
-import CloseIcon from '@mui/icons-material/Close';
-import {
+  Close,
   PersonOutline,
   Place,
   Settings,
   ReceiptLong
 } from "@mui/icons-material";
+import {
+  ProfileTab,
+} from "./tabs";
 
 
 interface UserProfileProps {
   onClose: () => void;
 }
 
-export default function ProfileDialog({onClose}: UserProfileProps) {
+export const Profile = ({onClose}: UserProfileProps) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'addresses' | 'orders' | 'settings'>('profile');
 
   const tabs = [
@@ -70,7 +68,7 @@ export default function ProfileDialog({onClose}: UserProfileProps) {
           color: theme.palette.grey[500],
         })}
       >
-        <CloseIcon/>
+        <Close/>
       </IconButton>
       <DialogContent dividers>
         <Box sx={{display: 'flex', height: 'calc(90vh - 88px)'}}>
