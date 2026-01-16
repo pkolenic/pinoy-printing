@@ -3,8 +3,10 @@ import {
   useEffect,
   Fragment,
   ChangeEvent,
+  SyntheticEvent,
 } from 'react';
 import { useAuthSession } from "../../hooks/useAuthSession";
+import { useUpdateUserMutation } from "../../features/user/user.ts";
 
 import {
   Alert,
@@ -16,7 +18,8 @@ import {
   IconButton,
   TextField,
   Stack,
-  Divider
+  Divider,
+  Snackbar,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 
@@ -29,10 +32,21 @@ interface UserProfileData {
 }
 
 export function ProfileTab() {
+  const [updateUser, {isLoading: isUpdating}] = useUpdateUserMutation();
   const {userProfile, isLoading, errorMessage} = useAuthSession();
   const [isEditing, setIsEditing] = useState(false);
   const [userData, setUserData] = useState<UserProfileData | null>(null);
   const [formData, setFormData] = useState<UserProfileData | null>(null);
+
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error';
+  }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
 
   // Sync local state when the authenticated user profile
   useEffect(() => {
@@ -84,6 +98,13 @@ export function ProfileTab() {
     );
   }
 
+  const handleCloseSnackbar = (_event?: SyntheticEvent | Event, reason?: string) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSnackbar((prev) => ({...prev, open: false}));
+  };
+
   const handleEditToggle = () => {
     setIsEditing((prev) => !prev);
     if (isEditing) {
@@ -96,12 +117,36 @@ export function ProfileTab() {
     setFormData((prev) => prev && ({...prev, [name]: value}));
   };
 
-  const handleSave = () => {
-    // This is still where you need a mutation hook to save data back to API
-    console.log("Saving changes:", formData);
-    // After a successful API call, you would likely refetch the user or update the store
-    setUserData(formData);
-    setIsEditing(false);
+  const handleSave = async () => {
+    if (!formData || !userProfile?.id) {
+      return;
+    }
+
+    try {
+      await updateUser({
+        id: userProfile.id,
+        data: {
+          name: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+        },
+      }).unwrap();  // .unwrap() allows us to catch errors here
+
+      setSnackbar({
+        open: true,
+        message: 'Profile updated successfully!',
+        severity: 'success',
+      });
+
+      setUserData(formData);
+      setIsEditing(false);
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: 'Failed to update profile. Please try again.',
+        severity: 'error',
+      });
+    }
   };
 
 
@@ -152,6 +197,7 @@ export function ProfileTab() {
               onChange={handleChange}
               fullWidth
               variant="outlined"
+              disabled={isUpdating}
             />
             <TextField
               label="Email"
@@ -161,6 +207,7 @@ export function ProfileTab() {
               onChange={handleChange}
               fullWidth
               variant="outlined"
+              disabled={isUpdating}
             />
             <TextField
               label="Phone"
@@ -169,11 +216,17 @@ export function ProfileTab() {
               onChange={handleChange}
               fullWidth
               variant="outlined"
+              disabled={isUpdating}
             />
             {/* Buttons positioned at the bottom to match the image layout */}
             <Box sx={{display: 'flex', gap: 2, justifyContent: 'flex-start', mt: 3}}>
-              <Button variant="contained" onClick={handleSave} color="primary">
-                Save Changes
+              <Button
+                variant="contained"
+                onClick={handleSave}
+                color="primary"
+                disabled={isUpdating}
+              >
+                {isUpdating ? <CircularProgress size={24} color={"inherit"}/> : 'Save Changes'}
               </Button>
               <Button variant="outlined" onClick={handleEditToggle}>
                 Cancel
@@ -202,6 +255,22 @@ export function ProfileTab() {
           </Fragment>
         )}
       </Stack>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{vertical: 'bottom', horizontal: 'center'}}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{width: '100%'}}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
