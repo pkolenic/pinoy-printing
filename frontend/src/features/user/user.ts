@@ -26,7 +26,7 @@ type GetUsersParams = {
 export const user = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl: '/api/users',
-    prepareHeaders: (headers, { getState }) => {
+    prepareHeaders: (headers, {getState}) => {
       const state = getState() as RootState;
       const token = state.auth.token;
       if (token) {
@@ -53,14 +53,27 @@ export const user = createApi({
 
         return `?${queryParams.toString()}`;
       },
-      // Refetch when any param changes by including the whole params object in the tag ID
-      providesTags: (_result, _error, params) => [
-        { type: "Users", id: JSON.stringify(params) }
-      ],
+      // Provides 'LIST' to allow mass invalidation
+      providesTags: (result) =>
+        result
+          ? [...result.data.map(({id}) => ({type: 'Users' as const, id})), {type: 'Users', id: 'LIST'}]
+          : [{type: 'Users', id: 'LIST'}],
     }),
     getUser: build.query<UserApiResponse, string>({
       query: (id) => `/${id}`,
-      providesTags: (_result, _error, id) => [{ type: 'Users', id }],
+      providesTags: (_result, _error, id) => [{type: 'Users', id}],
+    }),
+    updateUser: build.mutation<UserApiResponse, { id: string; data: Partial<User> }>({
+      query: ({id, data}) => ({
+        url: `/${id}`,
+        method: 'PUT',
+        body: data,
+      }),
+      // Invalidates the specific user and the list to ensure data consistency
+      invalidatesTags: (_result, _error, {id}) => [
+        {type: 'Users', id},
+        {type: 'Users', id: 'LIST'}
+      ],
     }),
   }),
 });
@@ -68,4 +81,5 @@ export const user = createApi({
 export const {
   useGetUsersQuery,
   useGetUserQuery,
+  useUpdateUserMutation,
 } = user;
