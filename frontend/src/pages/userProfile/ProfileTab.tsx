@@ -22,6 +22,7 @@ import {
   Snackbar,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
+import { PhoneNumberInput } from "../../components/PhoneNumberInput";
 
 interface UserProfileData {
   username: string;
@@ -47,6 +48,7 @@ export function ProfileTab() {
     message: '',
     severity: 'success',
   });
+  const [isPhoneValid, setIsPhoneValid] = useState(true);
 
   // Sync local state when the authenticated user profile
   useEffect(() => {
@@ -63,6 +65,61 @@ export function ProfileTab() {
       setFormData(mappedUserData);
     }
   }, [userProfile]);
+
+  const handleCloseSnackbar = (_event?: SyntheticEvent | Event, reason?: string) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSnackbar((prev) => ({...prev, open: false}));
+  };
+
+  const handleEditToggle = () => {
+    setIsEditing((prev) => !prev);
+    if (isEditing) {
+      setFormData(userData); // Reset form data to current saved data
+    }
+  };
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const {name, value} = e.target;
+    setFormData((prev) => prev && ({...prev, [name]: value}));
+  };
+
+  const handleSave = async () => {
+    if (!isPhoneValid) {
+      return;
+    }
+
+    if (!formData || !userProfile?.id) {
+      return;
+    }
+
+    try {
+      await updateUser({
+        id: userProfile.id,
+        data: {
+          name: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+        },
+      }).unwrap();  // .unwrap() allows us to catch errors here
+
+      setSnackbar({
+        open: true,
+        message: 'Profile updated successfully!',
+        severity: 'success',
+      });
+
+      setUserData(formData);
+      setIsEditing(false);
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: 'Failed to update profile. Please try again.',
+        severity: 'error',
+      });
+    }
+  };
 
   // Handle loading and error states
   if (isLoading) {
@@ -98,58 +155,6 @@ export function ProfileTab() {
     );
   }
 
-  const handleCloseSnackbar = (_event?: SyntheticEvent | Event, reason?: string) => {
-    if (reason === 'clickaway') {
-      return;
-    }
-    setSnackbar((prev) => ({...prev, open: false}));
-  };
-
-  const handleEditToggle = () => {
-    setIsEditing((prev) => !prev);
-    if (isEditing) {
-      setFormData(userData); // Reset form data to current saved data
-    }
-  };
-
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const {name, value} = e.target;
-    setFormData((prev) => prev && ({...prev, [name]: value}));
-  };
-
-  const handleSave = async () => {
-    if (!formData || !userProfile?.id) {
-      return;
-    }
-
-    try {
-      await updateUser({
-        id: userProfile.id,
-        data: {
-          name: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-        },
-      }).unwrap();  // .unwrap() allows us to catch errors here
-
-      setSnackbar({
-        open: true,
-        message: 'Profile updated successfully!',
-        severity: 'success',
-      });
-
-      setUserData(formData);
-      setIsEditing(false);
-    } catch (err) {
-      setSnackbar({
-        open: true,
-        message: 'Failed to update profile. Please try again.',
-        severity: 'error',
-      });
-    }
-  };
-
-
   return (
     <Box sx={{p: 1, margin: 'auto', bgcolor: 'background.paper'}}>
 
@@ -177,7 +182,7 @@ export function ProfileTab() {
       <Stack divider={<Divider flexItem/>} spacing={2}>
         {isEditing ? (
           <Fragment>
-            {/* Form fields matching the image layout */}
+            {/* Form fields */}
             <TextField
               label="Username"
               name="username"
@@ -209,22 +214,24 @@ export function ProfileTab() {
               variant="outlined"
               disabled={isUpdating}
             />
-            <TextField
+            <PhoneNumberInput
               label="Phone"
               name="phone"
               value={formData.phone}
               onChange={handleChange}
+              onValidationChange={(isValid) => setIsPhoneValid(isValid)}
+              disabled={isUpdating}
               fullWidth
               variant="outlined"
-              disabled={isUpdating}
+              helperText="Format: +[CountryCode][Number]"
             />
-            {/* Buttons positioned at the bottom to match the image layout */}
+            {/* Buttons positioned at the bottom */}
             <Box sx={{display: 'flex', gap: 2, justifyContent: 'flex-start', mt: 3}}>
               <Button
                 variant="contained"
                 onClick={handleSave}
                 color="primary"
-                disabled={isUpdating}
+                disabled={isUpdating || !isPhoneValid}
               >
                 {isUpdating ? <CircularProgress size={24} color={"inherit"}/> : 'Save Changes'}
               </Button>
