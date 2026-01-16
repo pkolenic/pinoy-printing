@@ -1,10 +1,11 @@
-import {StrictMode} from "react"
-import {createRoot} from "react-dom/client"
-import {Provider} from "react-redux"
-import {App} from "./App"
-import {store} from "./app/store"
-import {Auth0Provider} from '@auth0/auth0-react';
-// import "./index.css"
+import { StrictMode } from "react"
+import { createRoot } from "react-dom/client"
+import { Provider } from "react-redux"
+import { App } from "./App"
+import { store } from "./app/store"
+import { Auth0Provider } from '@auth0/auth0-react';
+import { ThemeProvider } from '@mui/material/styles';
+import theme from './app/theme';
 
 const container = document.getElementById("root")
 
@@ -23,9 +24,11 @@ if (container) {
           scope: "openid profile email offline_access", // Required for refresh tokens
         }}
       >
-        <Provider store={store}>
-          <App/>
-        </Provider>
+        <ThemeProvider theme={theme}>
+          <Provider store={store}>
+            <App/>
+          </Provider>
+        </ThemeProvider>
       </Auth0Provider>
     </StrictMode>,
   )
