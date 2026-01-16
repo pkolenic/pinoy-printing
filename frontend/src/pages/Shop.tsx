@@ -1,14 +1,12 @@
-import * as React from 'react';
+import {
+  Fragment,
+} from 'react';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
-import CssBaseline from '@mui/material/CssBaseline';
-import ShopAppBar from '../layout/ShopAppBar.tsx';
 
 export default function Shop() {
   return (
-    <React.Fragment>
-      <CssBaseline/>
-      <ShopAppBar/>
+    <Fragment>
       <Container>
         <Box sx={{my: 2}}>
           {[...new Array(12)]
@@ -21,6 +19,6 @@ Praesent commodo cursus magna, vel scelerisque nisl consectetur et.`,
             .join('\n')}
         </Box>
       </Container>
-    </React.Fragment>
+    </Fragment>
   )
 }

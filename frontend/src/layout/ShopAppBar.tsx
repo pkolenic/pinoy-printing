@@ -5,9 +5,7 @@ import {
   ReactElement,
   useState,
 } from 'react';
-import {useAuth0} from "@auth0/auth0-react";
-import { useAppDispatch } from "../app/hooks.ts";
-import { clearToken } from "../features/auth/auth.ts";
+import { useAuthSession } from "../hooks/useAuthSession";
 
 import AppBar from '@mui/material/AppBar';
 import Avatar from '@mui/material/Avatar';
@@ -25,6 +23,7 @@ import SearchBox from '../components/SearchBox';
 
 interface Props {
   children?: ReactElement<{ elevation?: number }>;
+  onProfileClick: () => void;
 }
 
 function ElevationScroll(props: Props) {
@@ -42,18 +41,18 @@ function ElevationScroll(props: Props) {
 }
 
 export default function ShopAppBar(props: Props) {
-  const dispatch = useAppDispatch();
+  const { onProfileClick } = props;
 
-  const companyTitle = import.meta.env.VITE_APP_TITLE || 'Sample0';
   const {
-    logout,
-    user = {name: "User", picture: "/static/images/avatar/2.jpg"}
-  } = useAuth0();
+    handleLogout,
+    userProfile: user = {name: "User", picture: "/static/images/avatar/2.jpg"},
+  } = useAuthSession();
+  const companyTitle = import.meta.env.VITE_APP_TITLE || 'Sample0';
 
   const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
   const settings = {
     'View Profile': () => {
-      console.log('Viewing Profile...');
+      onProfileClick();
       handleCloseUserMenu();
     },
     'See Orders': () => {
@@ -61,8 +60,7 @@ export default function ShopAppBar(props: Props) {
       handleCloseUserMenu();
     },
     'Logout': () => {
-      dispatch(clearToken());
-      logout({logoutParams: {returnTo: window.location.origin}}).catch(console.error);
+      handleLogout();
     }
   }
 
@@ -80,7 +78,8 @@ export default function ShopAppBar(props: Props) {
         <AppBar
           color="inherit"
           sx={{
-            borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+            borderBottom: 1,
+            borderColor: 'divider',
             pt: {xs: 2, lg: 0},
             pb: {xs: 2, lg: 0},
           }}

@@ -13,7 +13,9 @@ export type Order = {}
 
 export type User = {
   id: string;
+  picture?: string;
   name: string;
+  username: string;
   sub: string;
   email: string;
   phone: string;
