@@ -5,7 +5,7 @@ import {
   ReactElement,
   useState,
 } from 'react';
-import { useAuthSession } from "../hooks";
+import { useAuthSession } from "../../hooks";
 
 import {
   AppBar,
@@ -20,7 +20,7 @@ import {
   Typography,
   useScrollTrigger
 } from '@mui/material';
-import { SearchBox } from '../components';
+import { SearchBox } from '../../components';
 
 interface Props {
   children?: ReactElement<{ elevation?: number }>;

@@ -1,5 +1,1 @@
-import { ShopAppBar } from "./ShopAppBar"
-
-export {
-  ShopAppBar,
-}
+export * from "./appBar";
