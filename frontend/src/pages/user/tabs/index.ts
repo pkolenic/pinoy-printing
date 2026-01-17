@@ -1,5 +1,5 @@
-import { ProfileTab } from './ProfileTab.tsx';
+import { DetailsTab } from './DetailsTab.tsx';
 
 export {
-  ProfileTab,
+  DetailsTab,
 };

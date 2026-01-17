@@ -17,10 +17,9 @@ import {
   PersonOutline,
   Place,
   Settings,
-  ReceiptLong
 } from "@mui/icons-material";
 import {
-  ProfileTab,
+  DetailsTab,
 } from "./tabs";
 
 
@@ -29,12 +28,11 @@ interface UserProfileProps {
 }
 
 export const Profile = ({onClose}: UserProfileProps) => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'addresses' | 'orders' | 'settings'>('profile');
+  const [activeTab, setActiveTab] = useState<'details' | 'addresses' | 'settings'>('details');
 
   const tabs = [
-    {id: 'profile' as const, label: 'ProfileTab', icon: PersonOutline},
+    {id: 'details' as const, label: 'Personal Details', icon: PersonOutline},
     {id: 'addresses' as const, label: 'Addresses', icon: Place},
-    {id: 'orders' as const, label: 'Orders', icon: ReceiptLong},
     {id: 'settings' as const, label: 'Settings', icon: Settings},
   ];
 
@@ -101,14 +99,11 @@ export const Profile = ({onClose}: UserProfileProps) => {
 
           {/* Content */}
           <Box sx={{flexGrow: 1, overflowY: 'auto', p: 3}}>
-            {activeTab === 'profile' && (
-              <ProfileTab />
+            {activeTab === 'details' && (
+              <DetailsTab />
             )}
             {activeTab === 'addresses' && (
               <h6>Addresses</h6>
-            )}
-            {activeTab === 'orders' && (
-              <h6>Orders</h6>
             )}
             {activeTab === 'settings' && (
               <h6>Settings</h6>

@@ -12,7 +12,9 @@ import {
   Avatar,
   Box,
   Container,
+  Divider,
   IconButton,
+  ListItemIcon,
   Menu,
   MenuItem,
   Toolbar,
@@ -20,6 +22,12 @@ import {
   Typography,
   useScrollTrigger
 } from '@mui/material';
+import {
+  Dashboard,
+  Logout,
+  PersonOutline,
+  ReceiptLong
+} from "@mui/icons-material";
 import { SearchBox } from '../../components';
 
 interface Props {
@@ -46,24 +54,62 @@ export const ShopAppBar = (props: Props) => {
 
   const {
     handleLogout,
-    userProfile: user = {name: "User", picture: "/static/images/avatar/2.jpg"},
+    userProfile: user = {name: "User", picture: "/static/images/avatar/2.jpg", role: "customer"},
   } = useAuthSession();
   const companyTitle = import.meta.env.VITE_APP_TITLE || 'Sample0';
 
   const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
-  const settings = {
-    'View Profile': () => {
-      onProfileClick();
-      handleCloseUserMenu();
+  const isStaff = ['admin', 'staff', 'owner'].includes(user.role);
+
+  const options = [
+    {
+      id: 'profile' as const,
+      label: 'View Profile',
+      icon: PersonOutline,
+      onClick: () => {
+        onProfileClick();
+        handleCloseUserMenu();
+      },
+      color: 'primary.main',
     },
-    'See Orders': () => {
-      console.log('Seeing Orders...');
-      handleCloseUserMenu();
+    {
+      id: 'orders' as const,
+      label: 'See Orders',
+      icon: ReceiptLong,
+      onClick: () => {
+        console.log('Seeing Orders...');
+        handleCloseUserMenu();
+      },
+      color: 'primary.main',
+      hide: isStaff,
     },
-    'Logout': () => {
-      handleLogout();
+    {
+      id: 'dashboard' as const,
+      label: 'Show Dashboard',
+      icon: Dashboard,
+      onClick: () => {
+        console.log('Show Dashboard...');
+        handleCloseUserMenu();
+      },
+      color: 'primary.main',
+      hide: !isStaff,
+    },
+    {
+      id: 'divider' as const,
+    },
+    {
+      id: 'logout' as const,
+      label: 'Logout',
+      icon: Logout,
+      onClick: () => {
+        handleLogout();
+      },
+      color: 'error.main',
     }
-  }
+  ]
+
+  // Filter out options that are hidden
+  const visibleOptions = options.filter(option => !option.hasOwnProperty('hide') || !option.hide);
 
   const handleOpenUserMenu = (event: MouseEvent<HTMLElement>) => {
     setAnchorElUser(event.currentTarget);
@@ -128,17 +174,29 @@ export const ShopAppBar = (props: Props) => {
                     open={Boolean(anchorElUser)}
                     onClose={handleCloseUserMenu}
                   >
-                    {Object.entries(settings).map(([settingText, onClickHandler]) => (
-                      <MenuItem
-                        key={settingText}
-                        onClick={onClickHandler}
-                      >
-                        <Typography sx={{textAlign: 'center'}}>{settingText}</Typography>
-                      </MenuItem>
+                    {visibleOptions.map((option) => (
+                      option.id === 'divider' ? (
+                        <Divider/>
+                      ) : (
+                        <MenuItem
+                          key={option.id}
+                          onClick={option.onClick}
+                          sx={{
+                            color: option.color || 'primary.main',
+                            '& .MuiListItemIcon-root': {
+                              color: option.color || 'primary.main',
+                            },
+                          }}
+                        >
+                          <ListItemIcon>
+                            <option.icon fontSize="small"/>
+                          </ListItemIcon>
+                          <Typography sx={{textAlign: 'center'}}>{option.label}</Typography>
+                        </MenuItem>
+                      )
                     ))}
                   </Menu>
                 </Box>
-
                 <Typography
                   variant="h6"
                   component="div"

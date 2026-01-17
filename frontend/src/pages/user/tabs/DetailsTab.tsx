@@ -36,7 +36,7 @@ interface UserProfileData {
   picture?: string;
 }
 
-export function ProfileTab() {
+export function DetailsTab() {
   const [updateUser, {isLoading: isUpdating}] = userFeature.useUpdateUserMutation();
   const {userProfile, isLoading, errorMessage} = useAuthSession();
   const [isEditing, setIsEditing] = useState(false);
