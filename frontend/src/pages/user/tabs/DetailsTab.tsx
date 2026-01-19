@@ -142,7 +142,15 @@ export function DetailsTab() {
     <Box sx={{p: 1, margin: 'auto', bgcolor: 'background.paper'}}>
 
       {/* Header with the Edit button */}
-      <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3}}>
+      <Stack
+        direction={{xs: 'column', md: 'row'}}
+        spacing={2}
+        sx={{
+          mb: 1,
+          alignItems: {xs: 'flex-start', md: 'center'},
+          justifyContent: {md: 'space-between'},
+        }}
+      >
         <Typography variant="h5" component="h1" fontWeight="bold">
           Personal Information
         </Typography>
@@ -152,7 +160,7 @@ export function DetailsTab() {
             <Typography variant="button" sx={{ml: 1}}>Edit</Typography>
           </IconButton>
         )}
-      </Box>
+      </Stack>
 
       {/* Profile Picture */}
       <Box sx={{display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4}}>
@@ -219,14 +227,14 @@ export function DetailsTab() {
                 onClick={handleSave}
                 color="primary"
                 disabled={isUpdating || !isPhoneValid}
-                sx={{ width: { xs: '100%', md: 'auto' } }}
+                sx={{width: {xs: '100%', md: 'auto'}}}
               >
                 {isUpdating ? <CircularProgress size={24} color={"inherit"}/> : 'Save Changes'}
               </Button>
               <Button
                 variant="outlined"
                 onClick={handleEditToggle}
-                sx={{ width: { xs: '100%', sm: 'auto' } }}
+                sx={{width: {xs: '100%', sm: 'auto'}}}
               >
                 Cancel
               </Button>
