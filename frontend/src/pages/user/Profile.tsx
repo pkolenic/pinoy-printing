@@ -7,10 +7,6 @@ import {
   Box,
   Typography,
   IconButton,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
 } from '@mui/material';
 import {
   Close,
@@ -21,6 +17,9 @@ import {
 import {
   DetailsTab,
 } from "./tabs";
+import {
+  DialogSidebar
+} from "../../layout";
 
 
 interface UserProfileProps {
@@ -31,9 +30,24 @@ export const Profile = ({onClose}: UserProfileProps) => {
   const [activeTab, setActiveTab] = useState<'details' | 'addresses' | 'settings'>('details');
 
   const tabs = [
-    {id: 'details' as const, label: 'Personal Details', icon: PersonOutline},
-    {id: 'addresses' as const, label: 'Addresses', icon: Place},
-    {id: 'settings' as const, label: 'Settings', icon: Settings},
+    {
+      id: 'details' as const,
+      label: 'Personal Details',
+      icon: PersonOutline,
+      onClick: () => setActiveTab('details'),
+    },
+    {
+      id: 'addresses' as const,
+      label: 'Addresses',
+      icon: Place,
+      onClick: () => setActiveTab('addresses'),
+    },
+    {
+      id: 'settings' as const,
+      label: 'Settings',
+      icon: Settings,
+      onClick: () => setActiveTab('settings'),
+    },
   ];
 
   return (
@@ -70,33 +84,7 @@ export const Profile = ({onClose}: UserProfileProps) => {
       </IconButton>
       <DialogContent dividers>
         <Box sx={{display: 'flex', height: 'calc(90vh - 88px)'}}>
-          {/* Sidebar */}
-          <Box sx={{width: 256, borderRight: 1, borderColor: 'divider', bgcolor: 'grey.50', p: 2}}>
-            <List>
-              {tabs.map((tab) => (
-                <ListItemButton
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  selected={activeTab === tab.id}
-                  sx={{
-                    borderRadius: 1,
-                    '&.Mui-selected': {
-                      bgcolor: 'primary.main',
-                      color: 'primary.contrastText',
-                      '&:hover': {bgcolor: 'primary.dark'}
-                    },
-                    '&:hover': {bgcolor: 'grey.200'}
-                  }}
-                >
-                  <ListItemIcon sx={{minWidth: 40}}>
-                    <tab.icon sx={{color: activeTab === tab.id ? 'primary.contrastText' : 'inherit'}}/>
-                  </ListItemIcon>
-                  <ListItemText primary={tab.label}/>
-                </ListItemButton>
-              ))}
-            </List>
-          </Box>
-
+          <DialogSidebar listItems={tabs} activeTab={activeTab}/>
           {/* Content */}
           <Box sx={{flexGrow: 1, overflowY: 'auto', p: 3}}>
             {activeTab === 'details' && (

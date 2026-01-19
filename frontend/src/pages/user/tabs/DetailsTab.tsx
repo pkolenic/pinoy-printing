@@ -17,9 +17,9 @@ import {
   Divider,
   IconButton,
   Snackbar,
+  Stack,
   TextField,
   Typography,
-  Stack,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import {
@@ -127,15 +127,15 @@ export function DetailsTab() {
 
   // Handle loading and error states
   if (isLoading) {
-    return (<LoadingPanel message="Loading profile..." />);
+    return (<LoadingPanel message="Loading profile..."/>);
   }
 
   if (errorMessage) {
-    return (<MessagePanel severity="error" title="Error" message={errorMessage} />);
+    return (<MessagePanel severity="error" title="Error" message={errorMessage}/>);
   }
 
   if (!userData || !formData) {
-    return (<MessagePanel severity="info" message="No user data found." />);
+    return (<MessagePanel severity="info" message="No user data found."/>);
   }
 
   return (
@@ -209,19 +209,28 @@ export function DetailsTab() {
               helperText="Format: +[CountryCode][Number]"
             />
             {/* Buttons positioned at the bottom */}
-            <Box sx={{display: 'flex', gap: 2, justifyContent: 'flex-start', mt: 3}}>
+            <Stack
+              direction={{xs: 'column', md: 'row'}}
+              spacing={2}
+              sx={{mt: 3}}
+            >
               <Button
                 variant="contained"
                 onClick={handleSave}
                 color="primary"
                 disabled={isUpdating || !isPhoneValid}
+                sx={{ width: { xs: '100%', md: 'auto' } }}
               >
                 {isUpdating ? <CircularProgress size={24} color={"inherit"}/> : 'Save Changes'}
               </Button>
-              <Button variant="outlined" onClick={handleEditToggle}>
+              <Button
+                variant="outlined"
+                onClick={handleEditToggle}
+                sx={{ width: { xs: '100%', sm: 'auto' } }}
+              >
                 Cancel
               </Button>
-            </Box>
+            </Stack>
           </Fragment>
         ) : (
           <Fragment>

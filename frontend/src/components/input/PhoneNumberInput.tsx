@@ -17,7 +17,7 @@ export type PhoneNumberInputProps = TextFieldProps & {
 export const PhoneNumberInput = ({
                                    onChange,
                                    onValidationChange,
-                                   phoneRegex = /^\+[1-9]\d{1,14}$/,
+                                   phoneRegex = /^\+[1-9]\d{1,15}$/,
                                    errorText = "Invalid format. Use E.164 (e.g., +1234567890)",
                                    ...props
                                  }: PhoneNumberInputProps) => {

@@ -1,5 +1,6 @@
 import {
   cloneElement,
+  ElementType,
   Fragment,
   MouseEvent,
   ReactElement,
@@ -17,6 +18,7 @@ import {
   ListItemIcon,
   Menu,
   MenuItem,
+  SvgIconProps,
   Toolbar,
   Tooltip,
   Typography,
@@ -33,6 +35,16 @@ import { SearchBox } from '../../components';
 interface Props {
   children?: ReactElement<{ elevation?: number }>;
   onProfileClick: () => void;
+}
+
+type MenuOption = {
+  id: string;
+  label?: string;
+  icon?: ElementType<SvgIconProps>;
+  onClick?: () => void;
+  color?: string;
+  hide?: boolean;
+  type?: 'option' | 'divider';
 }
 
 function ElevationScroll(props: Props) {
@@ -61,7 +73,7 @@ export const ShopAppBar = (props: Props) => {
   const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
   const isStaff = ['admin', 'staff', 'owner'].includes(user.role);
 
-  const options = [
+  const options: MenuOption[] = [
     {
       id: 'profile' as const,
       label: 'View Profile',
@@ -74,6 +86,7 @@ export const ShopAppBar = (props: Props) => {
     },
     {
       id: 'orders' as const,
+      type: 'option',
       label: 'See Orders',
       icon: ReceiptLong,
       onClick: () => {
@@ -85,6 +98,7 @@ export const ShopAppBar = (props: Props) => {
     },
     {
       id: 'dashboard' as const,
+      type: 'option',
       label: 'Show Dashboard',
       icon: Dashboard,
       onClick: () => {
@@ -96,9 +110,11 @@ export const ShopAppBar = (props: Props) => {
     },
     {
       id: 'divider' as const,
+      type: 'divider',
     },
     {
       id: 'logout' as const,
+      type: 'option',
       label: 'Logout',
       icon: Logout,
       onClick: () => {
@@ -109,7 +125,7 @@ export const ShopAppBar = (props: Props) => {
   ]
 
   // Filter out options that are hidden
-  const visibleOptions = options.filter(option => !option.hasOwnProperty('hide') || !option.hide);
+  const visibleOptions: MenuOption[] = options.filter(option => !option.hasOwnProperty('hide') || !option.hide);
 
   const handleOpenUserMenu = (event: MouseEvent<HTMLElement>) => {
     setAnchorElUser(event.currentTarget);
@@ -174,10 +190,16 @@ export const ShopAppBar = (props: Props) => {
                     open={Boolean(anchorElUser)}
                     onClose={handleCloseUserMenu}
                   >
-                    {visibleOptions.map((option) => (
-                      option.id === 'divider' ? (
-                        <Divider/>
-                      ) : (
+                    {visibleOptions.map((option) => {
+                      // Handle Divider
+                      if (option.type === 'divider') {
+                        return <Divider key={option.id}/>;
+                      }
+
+                      // Converty to Capitalized variable
+                      const Icon = option.icon;
+
+                      return (
                         <MenuItem
                           key={option.id}
                           onClick={option.onClick}
@@ -189,12 +211,13 @@ export const ShopAppBar = (props: Props) => {
                           }}
                         >
                           <ListItemIcon>
-                            <option.icon fontSize="small"/>
+                            {/* Render only if Icon exists */}
+                            {Icon && <Icon fontSize="small"/>}
                           </ListItemIcon>
                           <Typography sx={{textAlign: 'center'}}>{option.label}</Typography>
                         </MenuItem>
-                      )
-                    ))}
+                      );
+                    })}
                   </Menu>
                 </Box>
                 <Typography
@@ -214,7 +237,7 @@ export const ShopAppBar = (props: Props) => {
         sx={{
           pt: {xs: 2, lg: 0},
           pb: {xs: 2, lg: 0},
-          minHeight: {xs: '120px;', lg: '64px'},
+          minHeight: {xs: '136px;', lg: '64px'},
         }}
       />
     </Fragment>
