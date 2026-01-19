@@ -1,4 +1,8 @@
-import { useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 import { useAuth0 } from '@auth0/auth0-react';
 import { skipToken } from "@reduxjs/toolkit/query/react";
 import { SerializedError } from "@reduxjs/toolkit";
@@ -22,26 +26,24 @@ export const useAuthSession = () => {
   // Add a simple state to track logout status
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     setIsLoggingOut(true);
     logout({logoutParams: {returnTo: window.location.origin}})
       .then(() => {
         dispatch(authFeature.clearToken());
       });
-  };
+  }, [dispatch, logout]);
 
   useEffect(() => {
     if (isAuthenticated && !token && !isLoggingOut) {
       getAccessTokenSilently()
         .then(t => dispatch(authFeature.setToken(t)))
         .catch(err => {
-          // Only log errors that aren't expected during logout
-          if (err.error !== 'missing_refresh_token') {
-            console.error("Token error", err);
-          }
+          console.error("Token acquisition failed, logging out:", err);
+          handleLogout(); // Automatically log out if token retrieval fails
         });
     }
-  }, [isAuthenticated, token, dispatch, getAccessTokenSilently]);
+  }, [isAuthenticated, token, dispatch, getAccessTokenSilently, isLoggingOut, handleLogout]);
 
   const profile = userFeature.useGetUserQuery(
     (isAuthenticated && token && auth0User?.account?.id) ? auth0User.account.id : skipToken
