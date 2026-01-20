@@ -15,6 +15,7 @@ import {
   Settings,
 } from "@mui/icons-material";
 import {
+  AddressTab,
   DetailsTab,
 } from "./tabs";
 import {
@@ -91,7 +92,7 @@ export const Profile = ({onClose}: UserProfileProps) => {
               <DetailsTab />
             )}
             {activeTab === 'addresses' && (
-              <h6>Addresses</h6>
+              <AddressTab />
             )}
             {activeTab === 'settings' && (
               <h6>Settings</h6>
