@@ -1,8 +1,9 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import type { RootState } from "../../app/store.ts";
-import type { User } from "../models.ts";
-
-type UserApiResponse = User;
+import type {
+  Address,
+  User,
+} from "../models.ts";
 
 type UsersApiResponse = {
   data: User[];
@@ -13,7 +14,6 @@ type UsersApiResponse = {
   nextPageUrl: string;
   prevPageUrl: string;
 }
-
 type GetUsersParams = {
   limit?: number;
   page?: number;
@@ -59,11 +59,11 @@ export const userSlice = createApi({
           ? [...result.data.map(({id}) => ({type: 'Users' as const, id})), {type: 'Users', id: 'LIST'}]
           : [{type: 'Users', id: 'LIST'}],
     }),
-    getUser: build.query<UserApiResponse, string>({
+    getUser: build.query<User, string>({
       query: (id) => `/${id}`,
       providesTags: (_result, _error, id) => [{type: 'Users', id}],
     }),
-    updateUser: build.mutation<UserApiResponse, { id: string; data: Partial<User> }>({
+    updateUser: build.mutation<User, { id: string; data: Partial<User> }>({
       query: ({id, data}) => ({
         url: `/${id}`,
         method: 'PUT',
@@ -75,6 +75,38 @@ export const userSlice = createApi({
         {type: 'Users', id: 'LIST'}
       ],
     }),
+    createAddress: build.mutation<Address, { id: string; data: Partial<Address>}>({
+      query: ({id, data}) => ({
+        url: `/${id}/address/create`,
+        method: 'POST',
+        body: data,
+      }),
+      // Invalidates the specific user so their profile/address list updates
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: 'Users', id }
+      ],
+    }),
+    updateAddress: build.mutation<Address, { id: string; addressId: string; data: Partial<Address>}>({
+      query: ({id, addressId, data}) => ({
+        url: `/${id}/address/${addressId}`,
+        method: 'PUT',
+        body: data,
+      }),
+      // Invalidates the specific user so their profile/address list updates
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: 'Users', id }
+      ],
+    }),
+    deleteAddress: build.mutation<void, { id: string; addressId: string}>({
+      query: ({id, addressId}) => ({
+        url: `/${id}/address/${addressId}`,
+        method: 'DELETE',
+      }),
+      // Invalidates the specific user so their profile/address list updates
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: 'Users', id }
+      ],
+    }),
   }),
 });
 
@@ -82,4 +114,7 @@ export const {
   useGetUsersQuery,
   useGetUserQuery,
   useUpdateUserMutation,
+  useCreateAddressMutation,
+  useUpdateAddressMutation,
+  useDeleteAddressMutation,
 } = userSlice;

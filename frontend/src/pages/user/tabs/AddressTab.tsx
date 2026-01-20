@@ -6,6 +6,7 @@ import {
   SyntheticEvent,
 } from "react";
 import { useAuthSession } from "../../../hooks";
+import { userFeature } from "../../../features";
 
 import {
   Alert,
@@ -27,8 +28,12 @@ import {
 import { Address } from "../../../features/models";
 
 export const AddressTab = () => {
+  const [updateAddress, {isLoading: isUpdating}] = userFeature.useUpdateAddressMutation();
+  const [createAddress, {isLoading: isCreating}] = userFeature.useCreateAddressMutation();
+  const [deleteAddress] = userFeature.useDeleteAddressMutation();
   const {userProfile, isLoading, errorMessage} = useAuthSession();
   const [isEditing, setIsEditing] = useState(false);
+  const [addressId, setAddressId] = useState<string | null>(null);
   const [addressData, setAddressData] = useState<Address[]>([]);
   const [formData, setFormData] = useState<Address | null>(null);
 
@@ -58,13 +63,15 @@ export const AddressTab = () => {
 
   const handleCloseEdit = () => {
     setIsEditing(false);
+    setAddressId(null);
     setFormData(null);
   };
 
-  const handleOpenEdit = (addressIndex: number | null = null) => {
+  const handleOpenEdit = (index: number | null = null) => {
     setIsEditing(true);
-    if (addressIndex !== null) {
-      setFormData(addressData[addressIndex]);
+    if (index !== null) {
+      setFormData(addressData[index]);
+      setAddressId(addressData[index].id);
     } else {
       // Reset form for a new address
       setFormData({
@@ -79,24 +86,55 @@ export const AddressTab = () => {
     }
   };
 
-  /* TODO */
-  const handleDelete = (index: number) => {
-    console.log('Delete address', index);
-    setSnackbar({
-      open: true,
-      message: 'Address deleted successfully!',
-      severity: 'success',
-    })
+  const handleDelete = async (index: number) => {
+    if (!userProfile?.id) {
+      return;
+    }
+
+    try {
+      await deleteAddress({
+        id: userProfile.id,
+        addressId: addressData[index].id
+      }).unwrap(); // .unwrap() allows us to catch errors here
+
+      setSnackbar({
+        open: true,
+        message: 'Address deleted successfully!',
+        severity: 'success',
+      })
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: 'Failed to delete address. Please try again',
+        severity: 'error',
+      });
+    }
   };
 
-  /* TODO */
-  const handleSetDefault = (index: number) => {
-    console.log('Set default address', index);
-    setSnackbar({
-      open: true,
-      message: 'Default address updated!',
-      severity: 'success',
-    })
+  const handleSetDefault = async (index: number) => {
+    if (!userProfile?.id) {
+      return;
+    }
+
+    try {
+      await updateAddress({
+        id: userProfile.id,
+        addressId: addressData[index].id,
+        data: {...addressData[index], isPrimary: true},
+      }).unwrap(); // .unwrap() allows us to catch errors here
+
+      setSnackbar({
+        open: true,
+        message: 'Default address updated!',
+        severity: 'success',
+      })
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: 'Failed to update address. Please try again',
+        severity: 'error',
+      })
+    }
   };
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -106,15 +144,61 @@ export const AddressTab = () => {
     setFormData((prev) => prev && ({...prev, [name]: newValue}));
   }
 
-  /* TODO */
   const handleSave = async () => {
-    setSnackbar({
-      open: true,
-      message: 'Address updated successfully!',
-      severity: 'success',
-    });
+    if (!formData || !userProfile?.id) {
+      return;
+    }
 
-    handleCloseEdit();
+    // Validate that there are no duplicate name/labels
+    const isDuplicateLabel = addressData.some((address: Address) => {
+      // Check if the name matches (case-insensitive)
+      const matchesLabel = address.name.toLowerCase() === formData.name.toLowerCase();
+
+      // If editing, exclude the current address from the check
+      if (addressId != null) {
+        return matchesLabel && address.id !== addressId;
+      }
+
+      return matchesLabel;
+    })
+
+    if (isDuplicateLabel) {
+      setSnackbar({
+        open: true,
+        message: `An address with the label "${formData.name}" already exists.`,
+        severity: 'error',
+      });
+      return;
+    }
+
+
+    try {
+      if (addressId != null) {
+        await updateAddress({
+          id: userProfile.id,
+          addressId: addressId,
+          data: formData,
+        }).unwrap(); // .unwrap() allows us to catch errors here
+      } else {
+        await createAddress({
+          id: userProfile.id,
+          data: formData,
+        }).unwrap(); // .unwrap() allows us to catch errors here
+      }
+
+      setSnackbar({
+        open: true,
+        message: addressId ? 'Address updated successfully!' : 'Address created successfully!',
+        severity: 'success',
+      });
+      handleCloseEdit();
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: addressId ? 'Failed to update address. Please try again' : 'Failed to create address. Please try again',
+        severity: 'error',
+      });
+    }
   }
 
   // Handle loading and error states
@@ -174,9 +258,12 @@ export const AddressTab = () => {
               {/* Label Field placeholder */}
               <TextField
                 label="Label (e.g., Home, Work)"
-                name="label"
+                name="name"
                 value={formData?.name}
+                onChange={handleChange}
                 fullWidth
+                variant="outlined"
+                disabled={isUpdating || isCreating}
               />
 
               <TextField
@@ -185,6 +272,8 @@ export const AddressTab = () => {
                 value={formData?.street}
                 onChange={handleChange}
                 fullWidth
+                variant="outlined"
+                disabled={isUpdating || isCreating}
               />
               <TextField
                 label="Street Address Line 2 (Optional)"
@@ -192,6 +281,8 @@ export const AddressTab = () => {
                 value={formData?.street2}
                 onChange={handleChange}
                 fullWidth
+                variant="outlined"
+                disabled={isUpdating || isCreating}
               />
 
               {/* City, State, ZIP in a single row stack */}
@@ -202,6 +293,8 @@ export const AddressTab = () => {
                   value={formData?.city}
                   onChange={handleChange}
                   fullWidth
+                  variant="outlined"
+                  disabled={isUpdating || isCreating}
                 />
                 <TextField
                   label="Region"
@@ -209,6 +302,8 @@ export const AddressTab = () => {
                   value={formData?.region}
                   onChange={handleChange}
                   sx={{width: 160}}
+                  variant="outlined"
+                  disabled={isUpdating || isCreating}
                 />
                 <TextField
                   label="Postal Code"
@@ -216,6 +311,8 @@ export const AddressTab = () => {
                   value={formData?.postalCode}
                   onChange={handleChange}
                   sx={{width: 160}}
+                  variant="outlined"
+                  disabled={isUpdating || isCreating}
                 />
               </Stack>
 
@@ -225,6 +322,7 @@ export const AddressTab = () => {
                     checked={formData?.isPrimary}
                     onChange={handleChange}
                     name="isPrimary"
+                    disabled={isUpdating || isCreating}
                   />
                 }
                 label="Set as default address"
