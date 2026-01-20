@@ -16,6 +16,7 @@ import createAttachMiddleware from "../middleware/models.js";
 import {
     createEmailRules,
     updateEmailRules,
+    passwordRules,
     phoneRules,
     validate
 } from "../middleware/validation.js";
@@ -88,6 +89,7 @@ router.put('/:userId',
 
 router.put('/:userId/password',
   checkPermissions('self', true),
+  ...passwordRules,
   attachUser,
   updateUserPassword,
 );
