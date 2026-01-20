@@ -5,6 +5,13 @@ import type {
   User,
 } from "../models.ts";
 
+type PasswordData = {
+  password: string,
+}
+type MessageResponse = {
+  message: string;
+}
+
 type UsersApiResponse = {
   data: User[];
   limit: number;
@@ -107,6 +114,14 @@ export const userSlice = createApi({
         { type: 'Users', id }
       ],
     }),
+    updatePassword: build.mutation<MessageResponse, { id: string; data: Partial<PasswordData>}>({
+      query: ({id, data}) => ({
+        url: `/${id}/password`,
+        method: 'PUT',
+        body: data,
+      }),
+      // Nothing to Invalidate as only the user's password is changing
+    }),
   }),
 });
 
@@ -117,4 +132,5 @@ export const {
   useCreateAddressMutation,
   useUpdateAddressMutation,
   useDeleteAddressMutation,
+  useUpdatePasswordMutation,
 } = userSlice;

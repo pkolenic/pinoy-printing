@@ -17,6 +17,7 @@ import {
 import {
   AddressTab,
   DetailsTab,
+  SettingsTab,
 } from "./tabs";
 import {
   DialogSidebar
@@ -95,7 +96,7 @@ export const Profile = ({onClose}: UserProfileProps) => {
               <AddressTab />
             )}
             {activeTab === 'settings' && (
-              <h6>Settings</h6>
+              <SettingsTab />
             )}
           </Box>
         </Box>
