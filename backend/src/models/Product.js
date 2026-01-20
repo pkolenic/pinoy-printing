@@ -17,10 +17,13 @@ const ProductSchema = new mongoose.Schema({
         lowercase: true,
         index: true,
     },
-    description: {type: String, required: false},
+    description: {type: String, required: true},
+    details: {type: String, required: false},
     price: {type: Number, required: true},
     image: {type: String, required: false},
     customizationSchema: {type: Object, required: false},
+    category: {type: String, required: true},
+    subCategory: {type: String, required: false},
 });
 
 export default mongoose.models.Product || mongoose.model('Product', ProductSchema);
