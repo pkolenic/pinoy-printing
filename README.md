@@ -6,18 +6,35 @@
 - Tech Stack:
   - Vite
   - React
+  - Material UI
   - Redux
   - Redux Toolkit
+  - TypeScript
+  - Auth0
 - Environment Variables: (defined in .env file in root directory)
-  - VITE_BACKEND_PORT: The port the backend server is running on for local development
-  - VITE_FRONTEND_PORT: The port the frontend server will run on for local development
-  
-  - VITE_AUTH0_DOMAIN: The Auth0 Domain
-  - VITE_AUTH0_CLIENT_ID: The Auth0 Client ID
-  - VITE_AUTH0_AUDIENCE: The Auth0 API Identifier
-  
-  - VITE_APP_TITLE: The title of the application
-
+  - Network settings: 
+     - VITE_BACKEND_PORT: The port the backend server is running on for local development
+     - VITE_FRONTEND_PORT: The port the frontend server will run on for local development
+  - Auth0 settings:
+     - VITE_AUTH0_DOMAIN: The Auth0 Domain
+     - VITE_AUTH0_CLIENT_ID: The Auth0 Client ID
+     - VITE_AUTH0_AUDIENCE: The Auth0 API Identifier
+  - Site Customizations:
+     - General  
+        - VITE_SHOP_NAME: The application title and Shop Name
+        - VITE_SHOP_ADDRESS: The Physical Address of the Shop
+        - VITE_SHOP_PHONE: The Phone Number of the Shop
+        - VITE_SHOP_EMAIL: The Email Address of the Shop
+     - Theme Colors  
+        - VITE_PRIMARY_COLOR: defaults to #42a5f5
+        - VITE_SECONDARY_COLOR: defaults to #bdbdbd
+        - VITE_ERROR_COLOR: defaults to #f44336
+        - VITE_PAPER_COLOR: defaults to #eceff1
+     - HERO Panel  
+        - VITE_HERO_TITLE: The Main Text of the Hero Panel
+        - VITE_HERO_DESCRIPTION: The Subtext of the Hero Panel
+        - VITE_HERO_IMAGE: The Image URL of the Hero Panel
+       
 ### BackEnd
 - Tech Stack:
     - Node.js / Express
@@ -25,24 +42,26 @@
     - Redis
     - Auth0
 - Environment Variables: (defined in .env file in root directory)
-  - PORT: The port the backend server will run on for local development
-
-  - AUTH0_AUDIENCE: The Auth0 API Identifier
-  - AUTH0_ISSUER_DOMAIN: Defined as the Auth0 Issuer Domain
-  - AUTH0_TOKEN_SIGNING_ALG: Defined as the Auth0 Token Signing Algorithm
-  - AUTH0_MANAGEMENT_CLIENT_ID: The Auth0 Management App Client ID
-  - AUTH0_MANAGEMENT_CLIENT_SECRET: The Auth0 Management App Client Secret
-
-  - AUTH0_ADMIN_ROLE_ID: The Auth0 Admin Role ID
-  - AUTH0_CUSTOMER_ROLE_ID: The Auth0 Customer Role ID
-  - AUTH0_OWNER_ROLE_ID: The Auth0 Owner Role ID
-  - AUTH0_STAFF_ROLE_ID: The Auth0 Staff Role ID
-
-  - MONGO_URI: MongoDB connection string
-  - MONGO_DB: MongoDB database name
-  
-  - REDIS_URI: Redis connection string
-  - REDIS_LOGGING: Redis logging flag
+  - Network settings:
+    - PORT: The port the backend server will run on for local development
+  - Auth0 Settings:
+    - AUTH0_AUDIENCE: The Auth0 API Identifier
+    - AUTH0_ISSUER_DOMAIN: Defined as the Auth0 Issuer Domain
+    - AUTH0_TOKEN_SIGNING_ALG: Defined as the Auth0 Token Signing Algorithm
+    - AUTH0_MANAGEMENT_CLIENT_ID: The Auth0 Management App Client ID
+    - AUTH0_MANAGEMENT_CLIENT_SECRET: The Auth0 Management App Client Secret
+    - AUTH0_AUTHORIZATION_DB: The Auth0 Connection Database
+  - Auth0 Role IDs:
+    - AUTH0_ADMIN_ROLE_ID: The Auth0 Admin Role ID
+    - AUTH0_CUSTOMER_ROLE_ID: The Auth0 Customer Role ID
+    - AUTH0_OWNER_ROLE_ID: The Auth0 Owner Role ID
+    - AUTH0_STAFF_ROLE_ID: The Auth0 Staff Role ID
+  - MongoDB Settings:
+    - MONGO_URI: MongoDB connection string
+    - MONGO_DB: MongoDB database name
+  - Redis Settings:
+    - REDIS_URI: Redis connection string
+    - REDIS_LOGGING: Redis logging flag
 
 ### Auth0
 #### 1. Create Application
