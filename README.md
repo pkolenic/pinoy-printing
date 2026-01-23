@@ -26,10 +26,10 @@
         - VITE_SHOP_PHONE: The Phone Number of the Shop
         - VITE_SHOP_EMAIL: The Email Address of the Shop
      - Theme Colors  
-        - VITE_PRIMARY_COLOR: defaults to #42a5f5 ![](https://placehold.co)
-        - VITE_SECONDARY_COLOR: defaults to #bdbdbd ![](https://placehold.co)
-        - VITE_ERROR_COLOR: defaults to #f44336 ![](https://placehold.co)
-        - VITE_PAPER_COLOR: defaults to #eceff1 ![](https://placehold.co)
+        - VITE_PRIMARY_COLOR: defaults to #42a5f5 ![](https://placehold.co/10/42a5f5/42a5f5)
+        - VITE_SECONDARY_COLOR: defaults to #bdbdbd ![](https://placehold.co/10/bdbdbd/bdbdbd)
+        - VITE_ERROR_COLOR: defaults to #f44336 ![](https://placehold.co/10/f44336/f44336)
+        - VITE_PAPER_COLOR: defaults to #eceff1 ![](https://placehold.co/10/eceff1/eceff1)
      - HERO Panel  
         - VITE_HERO_TITLE: The Main Text of the Hero Panel
         - VITE_HERO_DESCRIPTION: The Subtext of the Hero Panel
