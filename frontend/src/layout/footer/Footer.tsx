@@ -1,12 +1,13 @@
 import {
   Box,
   Container,
-  Divider,
   Grid,
   Link,
   Typography,
 } from '@mui/material';
-import { Favorite as FavoriteIcon, Phone as PhoneIcon, } from '@mui/icons-material';
+import {
+  Phone as PhoneIcon,
+} from '@mui/icons-material';
 
 const quickLinks = ['About Us', 'Track Order'];
 const customerServiceLinks = ['Shipping Info', 'Returns & Exchanges', 'FAQ'];
@@ -23,22 +24,43 @@ export const Footer = () => {
       component="footer"
       sx={{
         bgcolor: 'background.paper',
-        paddingTop: 6,
+        paddingTop: 2,
         paddingBottom: 2,
         marginTop: 'auto',
       }}
     >
       <Container maxWidth="lg">
         <Grid container spacing={4} justifyContent="space-between">
-
           {/* Section 1: Company Info */}
           <Grid size={{xs: 12, md: 4}}>
-            <Typography variant="h6" component="p" gutterBottom>
-              {shopName}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Your one-stop destination for thoughtful gifts that create lasting memories.
-            </Typography>
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 1
+            }}>
+              <Box>
+                <Typography variant="body2" color="text.secondary" sx={{display: 'inline', mr: 2}}>
+                  {shopAddress}
+                </Typography>
+                <Link
+                  href={shopPhoneForTelephone}
+                  color="text.secondary"
+                  underline="hover"
+                  sx={{display: 'flex', alignItems: 'center', gap: 0.5}}
+                >
+                  <PhoneIcon sx={{fontSize: 16}}/>
+                  <Typography variant="body2" color="inherit">
+                    {shopPhone}
+                  </Typography>
+                </Link>
+                <Typography variant="body2" color="text.secondary" sx={{display: 'inline'}}>
+                  {shopEmail}
+                </Typography>
+              </Box>
+            </Box>
           </Grid>
 
           {/* Section 2: Quick Links */}
@@ -70,38 +92,7 @@ export const Footer = () => {
           </Grid>
         </Grid>
 
-        <Divider sx={{my: 3}}/>
         {/* Bottom Bar: Copyright and Contact Info */}
-        <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1}}>
-          <Box>
-            <Typography variant="body2" color="text.secondary" sx={{display: 'inline', mr: 2}}>
-              {shopAddress}
-            </Typography>
-            <Link
-              href={shopPhoneForTelephone}
-              color="text.secondary"
-              underline="hover"
-              sx={{display: 'flex', alignItems: 'center', gap: 0.5}}
-            >
-              <PhoneIcon sx={{fontSize: 16}}/>
-              <Typography variant="body2" color="inherit">
-                {shopPhone}
-              </Typography>
-            </Link>
-            <Typography variant="body2" color="text.secondary" sx={{display: 'inline'}}>
-              {shopEmail}
-            </Typography>
-          </Box>
-          <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
-            <Typography variant="body2" color="text.secondary">
-              Made with
-            </Typography>
-            <FavoriteIcon sx={{color: 'red', fontSize: 16}}/>
-            <Typography variant="body2" color="text.secondary">
-              for gift lovers.
-            </Typography>
-          </Box>
-        </Box>
         <Typography variant="body2" color="text.secondary" align="center" sx={{mt: 2}}>
           {'© '}
           {new Date().getFullYear()}
