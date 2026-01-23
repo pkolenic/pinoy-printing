@@ -1,7 +1,10 @@
 import { Fragment, useState } from 'react';
 import { CssBaseline } from '@mui/material';
 import { LoadingPanel, MessagePanel } from './components';
-import { ShopAppBar  } from './layout';
+import {
+  ShopAppBar,
+  Footer,
+} from './layout';
 import { Profile, Shop} from './pages';
 import { useAuthSession } from "./hooks";
 import "./App.css"
@@ -40,6 +43,7 @@ export function App() {
             onProfileClick={() => setIsProfileOpen(true)}
           />
           <Shop/>
+          <Footer/>
 
           {isProfileOpen && (
             <Profile

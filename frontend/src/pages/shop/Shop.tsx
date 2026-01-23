@@ -1,12 +1,22 @@
 import {
   Fragment,
 } from 'react';
-import Box from '@mui/material/Box';
-import Container from '@mui/material/Container';
+import {
+  Box,
+  Container,
+} from '@mui/material';
+import {
+  Hero,
+} from '../../components';
 
 export const Shop = () => {
   return (
     <Fragment>
+      <Hero
+        title={import.meta.env.VITE_HERO_TITLE}
+        description={import.meta.env.VITE_HERO_DESCRIPTION}
+        imageUrl={import.meta.env.VITE_HERO_IMAGE}
+      />
       <Container>
         <Box sx={{my: 2}}>
           {[...new Array(12)]

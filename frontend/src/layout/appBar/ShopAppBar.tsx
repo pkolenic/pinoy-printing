@@ -68,7 +68,7 @@ export const ShopAppBar = (props: Props) => {
     handleLogout,
     userProfile: user = {name: "User", picture: "/static/images/avatar/2.jpg", role: "customer"},
   } = useAuthSession();
-  const companyTitle = import.meta.env.VITE_APP_TITLE || 'Sample0';
+  const companyTitle = import.meta.env.VITE_SHOP_NAME || 'Sample0';
 
   const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
   const isStaff = ['admin', 'staff', 'owner'].includes(user.role);
@@ -141,6 +141,7 @@ export const ShopAppBar = (props: Props) => {
         <AppBar
           color="inherit"
           sx={{
+            backgroundColor: '#fff',
             borderBottom: 1,
             borderColor: 'divider',
             pt: {xs: 2, lg: 0},
