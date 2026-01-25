@@ -3,14 +3,14 @@
 ## Structure and Technologies
 
 ### FrontEnd
-- Tech Stack:
-  - Vite
+- Tech Stack: 
+  - TypeScript
   - React
   - Material UI
   - Redux
   - Redux Toolkit
-  - TypeScript
   - Auth0
+  - Vite
 - Environment Variables: (defined in .env file in root directory)
   - Network settings: 
      - VITE_BACKEND_PORT: The port the backend server is running on for local development
@@ -37,6 +37,7 @@
        
 ### BackEnd
 - Tech Stack:
+    - TypeScript  
     - Node.js / Express
     - MongoDB / Mongoose
     - Redis
