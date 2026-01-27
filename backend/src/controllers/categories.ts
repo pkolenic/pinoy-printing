@@ -271,7 +271,11 @@ export const updateCategory: RequestHandler = async (req, res, next) => {
 
       // Trigger the Product pre-save hook for each product to recalculate its category array
       // We use Promise.all for parallel saves
-      await Promise.all(productsToUpdate.map(product => product.save()));
+      await Promise.all(productsToUpdate.map(product => {
+        // FORCE the hook to run by marking the field as dirty
+        product.markModified('categories');
+        return product.save();
+      }));
     }
 
     // Invalidate Cache
