@@ -1,4 +1,5 @@
 export * from './Address.js';
+export * from './Category.js';
 export * from './CustomerProduct.js';
 export * from './Order.js';
 export * from './OrderItem.js';

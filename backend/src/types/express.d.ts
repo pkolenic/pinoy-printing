@@ -1,5 +1,6 @@
 import {
   IAddress,
+  ICategoryDocument,
   IOrderDocument,
   IProductDocument,
   IUserDocument,
@@ -20,6 +21,7 @@ declare global {
     interface Request {
       // Custom properties attached by createAttachMiddleware
       address?: IAddress;
+      category?: ICategoryDocument;
       order?: IOrderDocument;
       product?: IProductDocument;
       user?: IUserDocument;

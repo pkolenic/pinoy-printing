@@ -15,10 +15,9 @@ import {
   checkPermissions,
   createAttachMiddleware,
   jwtCheck,
-  createEmailRules,
-  updateEmailRules,
-  passwordRules,
-  phoneRules,
+  createUserRules,
+  updateUserRules,
+  updatePasswordRules,
   validate,
 } from "../middleware/index.js";
 
@@ -61,8 +60,7 @@ router.get('/:userId',
  */
 router.post('/',
   checkPermissions('create:users'),
-  createEmailRules,
-  phoneRules,
+  createUserRules,
   validate,
   createUser,
 );
@@ -105,8 +103,7 @@ router.delete('/:userId',
  */
 router.put('/:userId',
   checkPermissions('update:users', true),
-  updateEmailRules,
-  phoneRules,
+  updateUserRules,
   validate,
   attachUser,
   updateUser,
@@ -118,7 +115,7 @@ router.put('/:userId',
  */
 router.put('/:userId/password',
   checkPermissions('self', true),  // Uses 'self' as a placeholder for logic
-  passwordRules,
+  updatePasswordRules,
   validate,
   attachUser,
   updateUserPassword,

@@ -5,6 +5,7 @@ import {
 } from 'express';
 import { jwtCheck } from "../middleware/index.js";
 import orderRoutes from "./orders.js";
+import productRoutes from "./products.js";
 import userRoutes from "./users.js";
 
 // Define a Router instance
@@ -33,6 +34,7 @@ router.get('/', (req: Request, res: Response): void => {
  * Ensure these modules export an express.Router Instance
  */
 router.use('/orders', orderRoutes);
+router.use('/products', productRoutes);
 router.use('/users', userRoutes);
 
 // Export the router
