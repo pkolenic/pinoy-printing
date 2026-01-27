@@ -4,6 +4,7 @@ import {
   Response,
   NextFunction,
 } from 'express';
+import { StatusCodes } from "http-status-codes";
 import { User } from "../models/index.js";
 
 /**
@@ -14,12 +15,14 @@ export const checkPermissions = (requiredPermission: string, isSelf: boolean = f
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const userPermissions: string[] = req.auth?.payload.permissions || [];
 
+    // Check explicit permission
     if (userPermissions.includes(requiredPermission)) {
-      return next(); // User has explicit permission, continue to the next handler
+      return next();
     }
 
+    // Check the "isSelf" condition if applicable
     if (isSelf) {
-      const {userId} = req.params;
+      const { userId } = req.params;
 
       try {
         const user = await User.findById(userId).exec();
@@ -30,12 +33,11 @@ export const checkPermissions = (requiredPermission: string, isSelf: boolean = f
         }
       } catch (error) {
         // Handle database errors (e.g., invalid ID format)
-        res.status(500).json({error: 'Internal Server Error'});
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ error: 'Internal Server Error' });
         return;
       }
-
-      // Default to Forbidden if no conditions are met
-      res.status(403).json({error: 'Forbidden: Not Authorized'});
     }
+    // Default to Forbidden if no conditions are met
+    res.status(StatusCodes.FORBIDDEN).json({ error: 'Forbidden: Not Authorized' });
   };
 };
