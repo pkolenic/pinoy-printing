@@ -26,6 +26,7 @@
     "express": "^5.1.0",
     "express-oauth2-jwt-bearer": "^1.7.1",
     "express-validator": "^7.3.1",
+    "http-status-codes": "^2.3.0",
     "lodash.startcase": "^4.4.0",
     "mongodb": "^7.0.0",
     "mongoose": "^8.20.0",
