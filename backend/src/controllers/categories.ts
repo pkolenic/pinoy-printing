@@ -138,6 +138,24 @@ export const getCategoryTree: RequestHandler = async (_req, res, next) => {
 }
 
 /**
+ * Get a single category by ID
+ * @route GET /api/categories/:categoryId
+ * @permission read:categories
+ */
+export const getCategory: RequestHandler = async (req, res, next) => {
+  try {
+    const { category } = req;
+
+    if (!category) {
+      return next(new AppError('Category not found', StatusCodes.NOT_FOUND));
+    }
+    res.status(StatusCodes.OK).json(category.toObject());
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
  * Delete a category by ID
  * @route DELETE /api/categories/:categoryId
  * @permission delete:categories

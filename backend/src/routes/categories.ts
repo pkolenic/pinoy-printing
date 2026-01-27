@@ -3,6 +3,7 @@ import { Router, RequestHandler } from 'express';
 import {
   createCategory,
   deleteCategory,
+  getCategory,
   getCategories,
   getCategoryTree,
   updateCategory,
@@ -47,7 +48,17 @@ router.get('/tree',
 );
 
 /**
- * Create a new category.
+ * GET a specific category.
+ * Permissions: read:categories
+ */
+router.get('/:categoryId',
+  checkPermissions('read:categories'),
+  attachCategory,
+  getCategory,
+);
+
+/**
+ * POST Create a new category.
  * Permissions: create:categories
  */
 router.post('/',
@@ -58,7 +69,7 @@ router.post('/',
 );
 
 /**
- * Delete a specific category.
+ * DELETE a specific category.
  * Permissions: delete:categories
  */
 router.delete('/:categoryId',
@@ -68,7 +79,7 @@ router.delete('/:categoryId',
 );
 
 /**
- * Update a specific category.
+ * PUT Update a specific category.
  * Permissions: update:categories
  */
 router.put('/:categoryId',
