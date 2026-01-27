@@ -177,21 +177,15 @@ export const deleteCategory: RequestHandler = async (req, res, next) => {
 
     // Update the direct children to point to their new parent
     if (directChildren.length > 0) {
-      // Use bulkWrite for performance
-      const bulkOps = directChildren.map(child => ({
-        updateOne: {
-          filter: { _id: child._id },
-          update: { $set: { parent: newParentId } }
-        }
-      }));
-      await Category.bulkWrite(bulkOps);
-
-      // Note: Because the Category schema uses a POST-SAVE hook to handle path updates
-      // recursively, simply changing the parent ID and letting the hook run handles
-      // the path updates for the entire subtree.
-
-      // We must manually trigger save on each updated document to fire the post-save hook
-      await Promise.all(directChildren.map(child => child.save()));
+      // Map over children, update parent, and save.
+      // The PRE-SAVE hook will now see 'parent' is modified and fix the 'path'.
+      // The POST-SAVE hook will then see the fixed 'path' and find the grandchildren.
+      await Promise.all(
+        directChildren.map((child) => {
+          child.parent = newParentId;
+          return child.save();
+        })
+      );
     }
 
     // 3. Handle Related Products: Remove the deleted category from any products' category arrays

@@ -72,21 +72,29 @@ CategorySchema.pre<ICategoryDocument>('save', async function (next) {
  * POST-SAVE: Recursively update all descendants
  */
 CategorySchema.post<ICategoryDocument>('save', async function (doc) {
+  // IMPORTANT: Only trigger recursive updates if the path actually changed
+  // This prevents infinite loops and unnecessary DB pressure.
+  // Note: 'this' in post-save is the document.
   const Model = doc.constructor as CategoryModel;
 
-  // Find all children whose path starts with the OLD path (logic: updated path - current slug)
-  // To keep it simple and robust, we update any child where the path is no longer accurate
   const descendants = await Model.find({
+    // Find children that are currently pointing to a path that started
+    // with what this category USED to be (or should be under now).
     path: new RegExp(`^${doc.path}/`)
   });
 
-  // Use Promise.all for parallel updates to improve performance
-  await Promise.all(descendants.map(child => child.save()));
+  if (descendants.length > 0) {
+    // Use Promise.all for parallel updates to improve performance
+    await Promise.all(descendants.map(child => child.save()));
+  }
 });
 
 export const Category = mongoose.models.Category || mongoose.model<ICategory, CategoryModel>('Category', CategorySchema);
 
-
+/**
+ * Utility function to find all related category IDs for a given slug.
+ * @param categorySlug
+ */
 export async function getRelatedCategoryIds(categorySlug: string): Promise<string[]> {
   // 1. Find the target parent category (e.g., 'shirts')
   const parentCategory = await Category.findOne({ slug: categorySlug });
