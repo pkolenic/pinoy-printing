@@ -103,7 +103,7 @@ export const getProducts: RequestHandler = async (req, res, next) => {
     }
 
     // Sort & Execute
-    const allowedSort = isStaff ? ['name', 'price', 'quantity'] : ['name', 'price'];
+    const allowedSort = isStaff ? ['name', 'price', 'quantity', 'category'] : ['name', 'price', 'category'];
     const sort = buildSort(sortBy, allowedSort);
 
     const [count, products] = await Promise.all([

@@ -75,9 +75,26 @@ CategorySchema.post<ICategoryDocument>('save', async function (doc) {
   // IMPORTANT: Only trigger recursive updates if the path actually changed
   // This prevents infinite loops and unnecessary DB pressure.
   // Note: 'this' in post-save is the document.
-  const Model = doc.constructor as CategoryModel;
+  const CategoryModel = doc.constructor as CategoryModel;
 
-  const descendants = await Model.find({
+  // Sync the new name to all Products
+  if (doc.isModified('name')) {
+    const ProductModel = mongoose.model('Product');
+
+    // ONLY update products where THIS category is the LEAF (the last element)
+    // Use the $expr operator to compare the last element of the array to our ID
+    await ProductModel.updateMany(
+      {
+        $expr: {
+          $eq: [{ $arrayElemAt: ["$categories", -1] }, doc._id]
+        }
+      },
+      { $set: { category: doc.slug } }
+    );
+  }
+
+  // Recursively update child category paths
+  const descendants = await CategoryModel.find({
     // Find children that are currently pointing to a path that started
     // with what this category USED to be (or should be under now).
     path: new RegExp(`^${doc.path}/`)

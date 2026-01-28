@@ -19,6 +19,7 @@ export interface IProduct {
   image?: string;
   customizationSchema?: Record<string, any>; // Stores the dynamic configuration for the product's customization options
   categories: (Types.ObjectId | ICategory)[];
+  category?: string;
   quantity?: number;
   showIfOutOfStock?: boolean;
 }
@@ -71,6 +72,7 @@ export const ProductSchema = new Schema<IProduct, ProductModel>({
     required: [true, 'At least one category is required.'],
     index: true,
   }],
+  category: { type: String, required: false, index: true },
   quantity: { type: Number, required: true, min: [0, 'Quantity cannot be less than 0.'] },
   showIfOutOfStock: { type: Boolean, required: false, default: false },
 });
@@ -91,17 +93,22 @@ ProductSchema.pre<IProductDocument>('save', async function (next) {
       // Use the typed model to look up the leaf category by ID
       const leafCategory = await CategoryModel.findById(leafCategoryId).lean();
 
-      if (leafCategory?.path) {
-        // Split path (e.g., "electronics/computers/laptops") into slugs
-        const slugs = leafCategory.path.split('/');
+      if (leafCategory) {
+        // Assign the leaf category's name to the products category name
+        this.category = leafCategory.name;
 
-        // Find all categories matching these slugs to get their ObjectIds
-        const ancestorDocs = await CategoryModel.find({
-          slug: { $in: slugs }
-        }).select('_id').lean();
+        if (leafCategory?.path) {
+          // Split path (e.g., "electronics/computers/laptops") into slugs
+          const slugs = leafCategory.path.split('/');
 
-        // Map them to ObjectIds and re-assign
-        this.categories = ancestorDocs.map(doc => doc._id as Types.ObjectId);
+          // Find all categories matching these slugs to get their ObjectIds
+          const ancestorDocs = await CategoryModel.find({
+            slug: { $in: slugs }
+          }).select('_id').lean();
+
+          // Map them to ObjectIds and re-assign
+          this.categories = ancestorDocs.map(doc => doc._id as Types.ObjectId);
+        }
       }
     } catch (error) {
       return next(error as mongoose.CallbackError);
