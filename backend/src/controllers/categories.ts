@@ -98,7 +98,9 @@ export const getCategoryTree: RequestHandler = async (_req, res, next) => {
     // 2. Fetch Flat list from DB
     // Use .lean() to get plain JS objects (ICategory[])
     type LeanCategory = ICategory & { _id: Types.ObjectId };
-    const categories = await Category.find().lean<LeanCategory[]>();
+    const categories = await Category.find()
+      .select("-createdAt -updatedAt -__v")
+      .lean<LeanCategory[]>();
 
     // 3. Transform flat list to tree
     // Use a record to store the nodes by ID for O(1) lookup
