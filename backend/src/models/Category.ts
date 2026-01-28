@@ -26,7 +26,7 @@ export type ICategoryDocument = HydratedDocument<ICategory>;
  * Define the Interface for the Category Tree.
  */
 export interface ICategoryTree extends ICategory {
-  _id: string;
+  id: string;
   children: ICategoryTree[];
 }
 

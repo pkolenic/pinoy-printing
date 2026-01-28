@@ -107,12 +107,13 @@ export const getCategoryTree: RequestHandler = async (_req, res, next) => {
     const categoryMap: Record<string, ICategoryTree> = {};
     const tree: ICategoryTree[] = []
 
-    // First pass: Initialize the map and structure the objects
+    // First pass: Map _id to id and initialize the map and structure the objects
     categories.forEach((cat) => {
-      const id = cat._id.toString();
-      categoryMap[id] = {
-        ...cat,
-        _id: id,
+      const idStr = cat._id.toString();
+      const { _id, ...rest } = cat; // Destructure to remove _id
+      categoryMap[idStr] = {
+        ...rest,
+        id: idStr,
         children: []
       } as ICategoryTree;
     });
