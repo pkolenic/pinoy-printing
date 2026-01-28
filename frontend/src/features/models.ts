@@ -9,6 +9,15 @@ export type Address = {
   isPrimary: boolean;
 }
 
+export type Category = {
+  id: string;
+  name: string;
+  slug: string;
+  path: string;
+  parent?: Category;
+  children?: Category[];
+}
+
 export type Order = {}
 
 export type User = {

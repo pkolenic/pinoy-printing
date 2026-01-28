@@ -3,6 +3,7 @@ import { combineSlices, configureStore } from "@reduxjs/toolkit";
 import { setupListeners } from "@reduxjs/toolkit/query";
 import {
   authFeature,
+  categoryFeature,
   counterFeature,
   quotesFeature,
   userFeature,
@@ -12,6 +13,7 @@ import {
 // their `reducerPath`s, therefore, we no longer need to call `combineReducers`.
 const rootReducer = combineSlices(
   authFeature.authSlice,
+  categoryFeature.categorySlice,
   counterFeature.counterSlice,
   quotesFeature.quotesApiSlice,
   userFeature.userSlice,
@@ -27,7 +29,11 @@ export const makeStore = (preloadedState?: Partial<RootState>) => {
     // Adding the api middleware enables caching, invalidation, polling,
     // and other useful features of `rtk-query`.
     middleware: getDefaultMiddleware => {
-      return getDefaultMiddleware().concat(quotesFeature.quotesApiSlice.middleware, userFeature.userSlice.middleware)
+      return getDefaultMiddleware().concat(
+        categoryFeature.categorySlice.middleware,
+        quotesFeature.quotesApiSlice.middleware,
+        userFeature.userSlice.middleware,
+      )
     },
     preloadedState,
   })
