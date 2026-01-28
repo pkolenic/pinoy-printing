@@ -6,6 +6,7 @@ import {
 import { jwtCheck } from "../middleware/index.js";
 import categoryRoutes from "./categories.js";
 import orderRoutes from "./orders.js";
+import productRoutes from "./products.js";
 import userRoutes from "./users.js";
 
 // Define a Router instance
@@ -35,6 +36,7 @@ router.get('/', (req: Request, res: Response): void => {
  */
 router.use('/categories', categoryRoutes);
 router.use('/orders', orderRoutes);
+router.use('/products', productRoutes);
 router.use('/users', userRoutes);
 
 // Export the router
