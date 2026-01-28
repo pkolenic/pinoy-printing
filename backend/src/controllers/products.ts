@@ -1,5 +1,5 @@
 import { RequestHandler } from "express";
-import { FilterQuery, SortOrder } from 'mongoose';
+import { FilterQuery } from 'mongoose';
 import { StatusCodes } from "http-status-codes";
 import { matchedData } from 'express-validator';
 
@@ -11,16 +11,17 @@ import {
   getRelatedCategoryIds,
 } from '../models/index.js'
 import { paginateResponse } from "../utils/paginationHelper.js";
+import { buildSort, parsePagination } from "../utils/controllers/queryHelper.js";
 
 /**
  * Sanitizes product data based on user permissions
  */
-const sanitizeProduct = (product: IProduct, permissions: string[]): IProduct => {
-  if (!permissions.includes('read:inventory')) {
-    const { quantity, ...rest } = product;
-    return rest as IProduct;
+const sanitizeProduct = (product: IProduct, isStaff: boolean): IProduct => {
+  if (isStaff) {
+    return product;
   }
-  return product;
+  const { quantity, ...rest } = product;
+  return rest as IProduct;
 };
 
 /**
@@ -73,93 +74,50 @@ export const createProduct: RequestHandler = async (req, res, next) => {
  */
 export const getProducts: RequestHandler = async (req, res, next) => {
   try {
-    // 1. Parameter Parsing with Explicate Casting
-    // req.query values are strings or arrays; we cast to string or parsing
-    const limit = parseInt(req.query.perPage as string, 10) || 10;
-    const page = parseInt(req.query.page as string, 10) || 1;
-    const sortBy = (req.query.sortBy as string)?.toLowerCase() || 'name';
-    const search = (req.query.search as string)?.toLowerCase();
-    const categorySlug = (req.query.category as string)?.toLowerCase();
-    const minPrice = parseInt(req.query.minPrice as string, 10);
-    const maxPrice = parseInt(req.query.maxPrice as string, 10);
-    const maxInventory = parseInt(req.query.maxInventory as string, 10);
+    const { limit, page, skip } = parsePagination(req);
     const userPermissions = req.auth?.payload.permissions || [];
     const isStaff = userPermissions.includes('read:inventory')
 
-    // 2. Build the Query Object
-    // Use FilterQuery<IProduct> to allow Mongoose-specific keys ($or, $text, etc.)
+    // Build Query
+    type queryType = { search?: string, category?: string, minPrice?: number, maxPrice?: number, maxInventory?: number, sortBy?: string};
     const query: FilterQuery<IProduct> = {};
+    const { search, category, minPrice, maxPrice, maxInventory, sortBy } = req.query as queryType
 
-    // Look up Category Ids (to include all children categories)
-    if (categorySlug) {
-      const categoryIds = await getRelatedCategoryIds(categorySlug);
-      if (categoryIds.length > 0) {
-        // Add to the query using $in operator
-        query.categories = { $in: categoryIds };
-      } else {
-        // If slug provided but category doesn't exist, return empty early
+    if (category) {
+      const categoryIds = await getRelatedCategoryIds(category.toLowerCase());
+      if (categoryIds.length === 0) {
+        // If slug provided but category doesn't exist, return empty early'
         return res.status(200).json(paginateResponse(req, [], 0, page, limit));
       }
+      query.categories = { $in: categoryIds };
     }
 
-    // If a search query is present
     if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { sku: { $regex: search, $options: 'i' } },
-      ];
+      query.$or = [{ name: { $regex: search, $options: 'i' } }, { sku: { $regex: search, $options: 'i' } }];
     }
-    if (minPrice) {
-      query.price = { $gte: minPrice };
-    }
-    if (maxPrice) {
-      query.price = { $lte: maxPrice };
+    if (minPrice || maxPrice) {
+      query.price = { ...(minPrice && { $gte: minPrice }), ...(maxPrice && { $lte: maxPrice }) };
     }
     if (maxInventory) {
       query.quantity = { $lte: maxInventory };
     }
 
-    // 3. Build the Sort Object
-    // Define allowed sortable fields explicitly for security/clarity
-    const publicAllowedSortableFields = ['name', 'price', 'category', 'subCategory'];
-    const privateAllowedSortableFields = [...publicAllowedSortableFields, 'quantity'];
-    const allowedSortableFields = isStaff ? privateAllowedSortableFields : publicAllowedSortableFields;
+    // Sort & Execute
+    const allowedSort = isStaff ? ['name', 'price', 'quantity'] : ['name', 'price'];
+    const sort = buildSort(sortBy, allowedSort);
 
-    // Default soft field and order
-    let sortField = 'name';
-    let sortOrder: SortOrder = 'asc';
-
-    if (sortBy) {
-      const fieldFromQuery = sortBy.replace(/^-/, ''); // Remove leading '-' if present
-      if (allowedSortableFields.includes(fieldFromQuery)) {
-        sortField = fieldFromQuery;
-        // Check for the descending indicator at the start
-        if (sortBy.startsWith('-')) {
-          sortOrder = 'desc';
-        }
-      }
-    }
-
-    // Construct sort object with bracket notation
-    const sort: { [key: string]: SortOrder } = { [sortField]: sortOrder };
-
-    // 4. Database Operations (Concurrent Execution)
-    // Run count and find operations concurrently for better performance
-    const [productCount, products] = await Promise.all([
+    const [count, products] = await Promise.all([
       Product.countDocuments(query),
       Product.find(query)
         .sort(sort)
-        .skip((page - 1) * limit)
+        .skip(skip)
         .limit(limit)
         .populate('categories', 'name slug id')
-        .lean<IProduct[]>(), // lean() returns plain JS objects (IUser[])
+        .lean<IProduct[]>(),
     ]);
-    const sanitizeProducts = products.map(p => sanitizeProduct(p, userPermissions));
 
-    // 5. Response Formatting
-    const formattedResponse = paginateResponse<IProduct>(req, sanitizeProducts, productCount, page, limit);
-
-    res.status(200).json(formattedResponse);
+    const securedData = products.map(p => sanitizeProduct(p, isStaff)) as IProduct[];
+    res.status(200).json(paginateResponse(req, securedData, count, page, limit));
   } catch (error) {
     next(error);
   }
@@ -180,7 +138,8 @@ export const getProduct: RequestHandler = async (req, res, next) => {
     await product.populate('categories', 'name slug id')
 
     const userPermissions = req.auth?.payload.permissions || [];
-    const productResponse = sanitizeProduct(product.toObject(), userPermissions);
+    const isStaff = userPermissions.includes('read:inventory')
+    const productResponse = sanitizeProduct(product.toObject(), isStaff);
 
     res.status(StatusCodes.OK).json(productResponse);
   } catch (error) {

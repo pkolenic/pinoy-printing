@@ -1,6 +1,6 @@
 import { RequestHandler } from "express";
-import { FilterQuery, SortOrder } from 'mongoose';
-
+import { FilterQuery } from 'mongoose';
+import { StatusCodes } from "http-status-codes";
 import {
   User,
   UserRole,
@@ -17,6 +17,7 @@ import {
 
 import { AppError } from '../utils/errors/index.js';
 import { paginateResponse } from '../utils/paginationHelper.js';
+import { buildSort, parsePagination } from "../utils/controllers/queryHelper.js";
 
 /**
  * Create a new user
@@ -77,7 +78,7 @@ export const createUser: RequestHandler = async (req, res, next) => {
     // 6. Sync MongoDB ID back to Auth0 app_meta_data - Use the Non-null assertion operator '!' since we know that user_id is defined
     await management.users.update(auth0User.user_id!, { app_metadata: { id: newUser.id } });
 
-    res.status(201).json(newUser);
+    res.status(StatusCodes.CREATED).json(newUser);
   } catch (error) {
     next(error);
   }
@@ -94,7 +95,7 @@ export const deleteUser: RequestHandler = async (req, res, next) => {
     const { user } = req;
 
     if (!user) {
-      return next(new AppError('User not found', 404));
+      return next(new AppError('User not found', StatusCodes.NOT_FOUND));
     }
 
     // 2. Delete the user within Auth0
@@ -108,7 +109,7 @@ export const deleteUser: RequestHandler = async (req, res, next) => {
     await user.deleteOne();
 
     // 4. Send 204 No Content
-    res.status(204).end();
+    res.status(StatusCodes.NO_CONTENT).end();
   } catch (error) {
     next(error);
   }
@@ -127,25 +128,23 @@ export const deleteUser: RequestHandler = async (req, res, next) => {
  */
 export const getUsers: RequestHandler = async (req, res, next) => {
   try {
-    // 1. Parameter Parsing with Explicate Casting
-    // req.query values are strings or arrays; we cast to string for parsing
-    const limit = parseInt(req.query.limit as string, 10) || 100;
-    const page = parseInt(req.query.page as string, 10) || 1;
-    const role = (req.query.role as string)?.toLowerCase();
-    const search = (req.query.search as string)?.toLowerCase();
-    const phone = (req.query.phone as string)?.toLowerCase();
-    const sortBy = (req.query.sortBy as string)?.toLowerCase();
+    const { limit, page, skip } = parsePagination(req, 100);
+    type queryType = { role?: string, search?: string, phone?: string, sortBy?: string };
+    const { role, search, phone, sortBy } = req.query as queryType;
 
-    // 2. Building the Query Object
-    // Use FilterQuery<IUser> to allow Mongoose-specific keys ($or, etc.)
+    // Build Query
     const query: FilterQuery<IUser> = {};
 
-    // Validate and add 'role' filter if valid
-    if (role && Object.keys(UserRole).includes(role)) {
-      query.role = role;
+    if (role && Object.keys(UserRole).includes(role.toLowerCase())) {
+      query.role = role.toLowerCase();
     }
-
-    // If a search query is present, add an $or query to match the name or email
+    if (phone) {
+      // TODO - OPTIMIZATION: Use exact match if possible, or a more precise regex.
+      // A simple regex, common approach for finding a match:
+      query.phone = { $regex: phone, $options: 'i' };
+      // If you need strict international format validation, define a more specific regex pattern.
+      // TODO - Pull this from an environment variable
+    }
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -154,52 +153,18 @@ export const getUsers: RequestHandler = async (req, res, next) => {
       ];
     }
 
-    // Phone number filtering
-    if (phone) {
-      // TODO - OPTIMIZATION: Use exact match if possible, or a more precise regex.
-      // A simple regex, common approach for finding a match:
-      query.phone = { $regex: phone, $options: 'i' };
-      // If you need strict international format validation, define a more specific regex pattern.
-      // TODO - Pull this from an environment variable
-    }
-
-    // 3. Building the Sort Object
-    // Define allowed sortable fields explicitly for security/clarity
-    const allowedSortableFields = ['name', 'email', 'role'];
-
-    // Default sort field and order
-    let sortField = 'name';
-    let sortOrder: SortOrder = 'asc';
-
-    if (sortBy) {
-      const fieldFromQuery = sortBy.replace(/^-/, ''); // Remove leading '-' if present
-      if (allowedSortableFields.includes(fieldFromQuery)) {
-        sortField = fieldFromQuery;
-        // Check for the descending indicator at the start
-        if (sortBy.startsWith('-')) {
-          sortOrder = 'desc';
-        }
-      }
-    }
-
-    // Construct sort object with bracket notation
-    const sort: { [key: string]: SortOrder } = { [sortField]: sortOrder };
-
-    // 4. Database Operations (Concurrent Execution)
-    // Run count and find operations concurrently for better performance
-    const [usersCount, users] = await Promise.all([
+    // Sort & Execute
+    const sort = buildSort(sortBy, ['name', 'email', 'role']);
+    const [count, users] = await Promise.all([
       User.countDocuments(query),
       User.find(query)
         .sort(sort)
-        .skip((page - 1) * limit)
+        .skip(skip)
         .limit(limit)
-        .lean<IUser[]>(), // lean() returns plain JS objects (IUser[])
+        .lean<IUser[]>(),
     ]);
 
-    // 5. Response Formatting
-    const formattedResponse = paginateResponse<IUser>(req, users, usersCount, page, limit);
-
-    res.status(200).json(formattedResponse);
+    res.status(StatusCodes.OK).json(paginateResponse(req, users, count, page, limit));
   } catch (error) {
     next(error);
   }
@@ -214,7 +179,7 @@ export const updateUser: RequestHandler = async (req, res, next) => {
     const { user, body: updates } = req;
 
     if (!user) {
-      return next(new AppError('User not found', 404));
+      return next(new AppError('User not found', StatusCodes.NOT_FOUND));
     }
 
     const management = getManagementClient();
@@ -276,7 +241,7 @@ export const updateUser: RequestHandler = async (req, res, next) => {
     user.set(dbUpdates);
     await user.save();
 
-    res.status(200).json(user);
+    res.status(StatusCodes.OK).json(user);
   } catch (error) {
     next(error);
   }
@@ -291,7 +256,7 @@ export const updateUserPassword: RequestHandler = async (req, res, next) => {
     const { user } = req;
 
     if (!user) {
-      return next(new AppError('User not found', 404));
+      return next(new AppError('User not found', StatusCodes.NOT_FOUND));
     }
 
     const { password } = req.body;
@@ -304,7 +269,7 @@ export const updateUserPassword: RequestHandler = async (req, res, next) => {
     const userSub = user.sub!; // Non-null assertion for Auth0 calls
     await management.users.update(userSub, { password });
 
-    res.status(200).json({ message: "Password updated successfully" });
+    res.status(StatusCodes.OK).json({ message: "Password updated successfully" });
   } catch (error) {
     next(error);
   }
@@ -318,7 +283,7 @@ export const getUser: RequestHandler = async (req, res, next) => {
   try {
     const { user } = req;
 
-    if (!user) return next(new AppError('User not found', 404));
+    if (!user) return next(new AppError('User not found', StatusCodes.NOT_FOUND));
 
     // Populate virtual 'orders'
     await user.populate('orders');
@@ -338,7 +303,7 @@ export const getUser: RequestHandler = async (req, res, next) => {
       picture: auth0User.picture,
     }
 
-    res.status(200).json(userResponse);
+    res.status(StatusCodes.OK).json(userResponse);
   } catch (error) {
     next(error);
   }
@@ -354,7 +319,7 @@ export const createAddress: RequestHandler = async (req, res, next) => {
     const { user } = req;
 
     if (!user) {
-      return next(new AppError('User not found', 404));
+      return next(new AppError('User not found', StatusCodes.NOT_FOUND));
     }
 
     // 1. Create the new address subdocument
@@ -365,10 +330,10 @@ export const createAddress: RequestHandler = async (req, res, next) => {
     // 2. Push the new address to the user's addresses array'
     user.addresses.push(newAddress);
 
-     // 3. Save the parent document - Mongoose handles the validation of the new subdocument automatically
+    // 3. Save the parent document - Mongoose handles the validation of the new subdocument automatically
     await user.save();
 
-    res.status(201).json(newAddress);
+    res.status(StatusCodes.CREATED).json(newAddress);
   } catch (error) {
     next(error);
   }
@@ -383,7 +348,7 @@ export const deleteAddress: RequestHandler = async (req, res, next) => {
     const { user } = req;
 
     if (!user) {
-      return next(new AppError('User not found', 404));
+      return next(new AppError('User not found', StatusCodes.NOT_FOUND));
     }
 
     const { addressId } = req.params;
@@ -391,7 +356,7 @@ export const deleteAddress: RequestHandler = async (req, res, next) => {
     // 1. Check if the address exists before attempting to delete
     // .id() is a helper on DocumentArrays to find a subdocument by _id
     if (!user.addresses.id(addressId)) {
-      return next(new AppError('Address not found', 404));
+      return next(new AppError('Address not found', StatusCodes.NOT_FOUND));
     }
 
     // 2. Remove the address from the user's addresses array
@@ -402,7 +367,7 @@ export const deleteAddress: RequestHandler = async (req, res, next) => {
     // Our pre-validate hook in User.ts will automatically handle resetting the primaryAddressId if the deleted address was the primary one.
     await user.save();
 
-    res.status(204).end();
+    res.status(StatusCodes.NO_CONTENT).end();
   } catch (error) {
     next(error);
   }
@@ -417,7 +382,7 @@ export const updateAddress: RequestHandler = async (req, res, next) => {
     const { user } = req;
 
     if (!user) {
-      return next(new AppError('User not found', 404));
+      return next(new AppError('User not found', StatusCodes.NOT_FOUND));
     }
 
     const { addressId } = req.params;
@@ -428,18 +393,18 @@ export const updateAddress: RequestHandler = async (req, res, next) => {
     const address = user.addresses.id(addressId) as AddressSubdocument | null;
 
     if (!address) {
-      return next(new AppError('Address not found', 404));
+      return next(new AppError('Address not found', StatusCodes.NOT_FOUND));
     }
 
     // 2. Update the address fields
     // .set() on a subdocument performs a path-based update
     address.set(updates);
 
-     // 3. Save the parent User document
-     // This triggers the pre-validate hook in User.ts, ensuring the primaryAddressId logic is updated if _isPrimaryInput was set.
+    // 3. Save the parent User document
+    // This triggers the pre-validate hook in User.ts, ensuring the primaryAddressId logic is updated if _isPrimaryInput was set.
     await user.save();
 
-    res.status(200).json(address);
+    res.status(StatusCodes.OK).json(address);
   } catch (error) {
     next(error);
   }
