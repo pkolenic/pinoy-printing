@@ -1,6 +1,4 @@
-import {
-  Fragment,
-} from 'react';
+import { Fragment } from 'react';
 import {
   Box,
   Container,
@@ -9,7 +7,12 @@ import {
   Hero,
 } from '../../components';
 
+import { categoryFeature } from "../../features";
+
 export const Shop = () => {
+  // Prefetch categories
+  categoryFeature.useGetCategoryTreeQuery();
+
   return (
     <Fragment>
       <Hero
