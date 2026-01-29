@@ -5,6 +5,7 @@ import {
   authFeature,
   categoryFeature,
   counterFeature,
+  filterFeature,
   quotesFeature,
   userFeature,
 } from "../features";
@@ -15,6 +16,7 @@ const rootReducer = combineSlices(
   authFeature.authSlice,
   categoryFeature.categorySlice,
   counterFeature.counterSlice,
+  filterFeature.filterSlice,
   quotesFeature.quotesApiSlice,
   userFeature.userSlice,
 )

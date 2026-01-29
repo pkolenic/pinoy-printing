@@ -6,7 +6,10 @@ import {
   ReactElement,
   useState,
 } from 'react';
-import { useAuthSession } from "../../hooks";
+import {
+  useAuthSession,
+  useElementSize,
+} from "../../hooks";
 
 import {
   AppBar,
@@ -48,7 +51,7 @@ type MenuOption = {
 }
 
 function ElevationScroll(props: Props) {
-  const {children} = props;
+  const { children } = props;
   const trigger = useScrollTrigger({
     disableHysteresis: true,
     threshold: 0,
@@ -62,11 +65,12 @@ function ElevationScroll(props: Props) {
 }
 
 export const ShopAppBar = (props: Props) => {
-  const {onProfileClick} = props;
+  const { children, onProfileClick } = props;
+  const [appBarRef, { height} ] = useElementSize();
 
   const {
     handleLogout,
-    userProfile: user = {name: "User", picture: "/static/images/avatar/2.jpg", role: "customer"},
+    userProfile: user = { name: "User", picture: "/static/images/avatar/2.jpg", role: "customer" },
   } = useAuthSession();
   const companyTitle = import.meta.env.VITE_SHOP_NAME || 'Sample0';
 
@@ -139,44 +143,52 @@ export const ShopAppBar = (props: Props) => {
     <Fragment>
       <ElevationScroll {...props}>
         <AppBar
+          ref={appBarRef}
           color="inherit"
           sx={{
             backgroundColor: '#fff',
-            borderBottom: 1,
-            borderColor: 'divider',
-            pt: {xs: 2, lg: 0},
-            pb: {xs: 2, lg: 0},
+            pt: { xs: 2, lg: 0 },
+            pb: { xs: 2, lg: 0 },
           }}
         >
-          <Container maxWidth="lg">
+          <Container
+            maxWidth="lg"
+            sx={{
+              borderBottom: 0,
+              md: {
+                borderBottom: 1,
+                borderColor: 'divider'
+              }
+            }}
+          >
             <Toolbar
               disableGutters
               sx={{
-                flexDirection: {xs: 'column', lg: 'row'},
-                justifyContent: {xs: 'flex-start', lg: 'space-between'},
-                alignItems: {xs: 'flex-start', lg: 'center'},
+                flexDirection: { xs: 'column', lg: 'row' },
+                justifyContent: { xs: 'flex-start', lg: 'space-between' },
+                alignItems: { xs: 'flex-start', lg: 'center' },
               }}
             >
               <Box
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
-                  flexGrow: {xs: 0, lg: 1},
-                  mb: {xs: 1, lg: 0},
+                  flexGrow: { xs: 0, lg: 1 },
+                  mb: { xs: 1, lg: 0 },
                 }}
               >
-                <Box sx={{flexGrow: 0}}>
+                <Box sx={{ flexGrow: 0 }}>
                   <Tooltip title="Open settings">
-                    <IconButton onClick={handleOpenUserMenu} sx={{p: 0}}>
+                    <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
                       <Avatar
                         alt={user.name}
                         src={user.picture}
-                        sx={{width: 32, height: 32}}
+                        sx={{ width: 32, height: 32 }}
                       />
                     </IconButton>
                   </Tooltip>
                   <Menu
-                    sx={{mt: '45px'}}
+                    sx={{ mt: '45px' }}
                     id="menu-appbar"
                     anchorEl={anchorElUser}
                     anchorOrigin={{
@@ -215,7 +227,7 @@ export const ShopAppBar = (props: Props) => {
                             {/* Render only if Icon exists */}
                             {Icon && <Icon fontSize="small"/>}
                           </ListItemIcon>
-                          <Typography sx={{textAlign: 'center'}}>{option.label}</Typography>
+                          <Typography sx={{ textAlign: 'center' }}>{option.label}</Typography>
                         </MenuItem>
                       );
                     })}
@@ -224,7 +236,7 @@ export const ShopAppBar = (props: Props) => {
                 <Typography
                   variant="h6"
                   component="div"
-                  sx={{ml: 2, mr: 2}}
+                  sx={{ ml: 2, mr: 2 }}
                 >
                   {companyTitle}
                 </Typography>
@@ -232,13 +244,18 @@ export const ShopAppBar = (props: Props) => {
               <SearchBox/>
             </Toolbar>
           </Container>
+          {children ? (
+            <Fragment>
+              {children}
+            </Fragment>
+          ) : null}
         </AppBar>
       </ElevationScroll>
       <Toolbar
         sx={{
-          pt: {xs: 2, lg: 0},
-          pb: {xs: 2, lg: 0},
-          minHeight: {xs: '136px;', lg: '64px'},
+          pt: { xs: 2, lg: 0 },
+          pb: { xs: 2, lg: 0 },
+          minHeight: `${height}px !important`,
         }}
       />
     </Fragment>

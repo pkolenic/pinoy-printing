@@ -1,11 +1,14 @@
 import { Fragment, useState } from 'react';
-import { CssBaseline } from '@mui/material';
+import {
+  CssBaseline
+} from '@mui/material';
 import { LoadingPanel, MessagePanel } from './components';
 import {
+  CategoryFilterBar,
   ShopAppBar,
   Footer,
 } from './layout';
-import { Profile, Shop} from './pages';
+import { Profile, Shop } from './pages';
 import { useAuthSession } from "./hooks";
 import "./App.css"
 
@@ -29,11 +32,11 @@ export function App() {
 
   const renderContent = () => {
     if (isLoading) {
-      return <LoadingPanel />;
+      return <LoadingPanel/>;
     }
 
     if (errorMessage) {
-      return <MessagePanel severity="error" title="Something went wrong" message={errorMessage} />;
+      return <MessagePanel severity="error" title="Something went wrong" message={errorMessage}/>;
     }
 
     if (isAuthenticated && token && userProfile) {
@@ -41,7 +44,9 @@ export function App() {
         <Fragment>
           <ShopAppBar
             onProfileClick={() => setIsProfileOpen(true)}
-          />
+          >
+            <CategoryFilterBar sx={{ display: {xs: 'none', md: 'block'}}}/>
+          </ShopAppBar>
           <Shop/>
           <Footer/>
 
@@ -59,7 +64,7 @@ export function App() {
 
   return (
     <Fragment>
-      <CssBaseline />
+      <CssBaseline/>
       {renderContent()}
     </Fragment>
   );

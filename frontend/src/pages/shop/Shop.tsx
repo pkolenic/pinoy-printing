@@ -1,4 +1,5 @@
 import { Fragment } from 'react';
+import { useAppSelector } from '../../hooks';
 import {
   Box,
   Container,
@@ -13,6 +14,8 @@ export const Shop = () => {
   // Prefetch categories
   categoryFeature.useGetCategoryTreeQuery();
 
+  const selectedCategory = useAppSelector((state) => state.filter.selectedCategory);
+
   return (
     <Fragment>
       <Hero
@@ -22,6 +25,7 @@ export const Shop = () => {
       />
       <Container>
         <Box sx={{my: 2}}>
+          <h2>{ selectedCategory.name }</h2>
           {[...new Array(12)]
             .map(
               () => `Cras mattis consectetur purus sit amet fermentum.

@@ -19,6 +19,15 @@ export const categorySlice = createApi({
   endpoints: build => ({
     getCategoryTree: build.query<Category[], void>({
       query: () => '/tree',
+      transformResponse: (response: Category[]) => {
+        const allGifts: Category = {
+          id: 'all-gifts',
+          slug: 'all-gifts',
+          name: 'All Gifts',
+          path: '/',
+        };
+        return [allGifts, ...response];
+      },
       providesTags: (result, _error, _id) =>
         result
           ? [{ type: 'Categories', id: 'TREE' }]
