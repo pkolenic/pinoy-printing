@@ -1,5 +1,6 @@
 import { RequestHandler } from 'express';
 import { Model, Document } from 'mongoose';
+import { StatusCodes } from 'http-status-codes';
 
 import { AppError } from '../utils/errors/index.js';
 import { AddressSubdocument } from '../models/index.js';
@@ -20,7 +21,7 @@ export const createAttachMiddleware = <T extends Document>(
       const item = await model.findById(itemId).exec();
 
       if (!item) {
-        return next(new AppError(`${model.modelName} not found`, 404));
+        return next(new AppError(`${model.modelName} not found`, StatusCodes.NO_CONTENT));
       }
 
       // Attach the document to the request object
@@ -34,7 +35,7 @@ export const createAttachMiddleware = <T extends Document>(
       }
       // Convert standard errors or Mongoose errors to AppError format
       const message = error instanceof Error ? error.message : 'Internal Server Error';
-      next(new AppError(message, 500));
+      next(new AppError(message, StatusCodes.INTERNAL_SERVER_ERROR));
     }
   }
 }
@@ -50,7 +51,7 @@ export const attachAddress: RequestHandler = (req, res, next) => {
   const addressId = req.body.addressId || req.query.addressId;
 
   if (!user) {
-    return next(new AppError('User context required to attach address', 500));
+    return next(new AppError('User context required to attach address', StatusCodes.INTERNAL_SERVER_ERROR));
   }
 
   // If an addressId was provided, find it in the user's subdocuments
@@ -58,7 +59,7 @@ export const attachAddress: RequestHandler = (req, res, next) => {
     const foundAddress = user.addresses.id(addressId) as AddressSubdocument | null;
 
     if (!foundAddress) {
-      return next(new AppError('The specified address was not found', 404));
+      return next(new AppError('The specified address was not found', StatusCodes.NO_CONTENT));
     }
 
     // Attach to the request for the controller to use

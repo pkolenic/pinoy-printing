@@ -1,5 +1,6 @@
-import { body, ValidationChain } from 'express-validator';
+import { body } from 'express-validator';
 import sanitizeHtml from 'sanitize-html';
+import { withValidation } from './common.js';
 
 /**
  * Base rule for Product validation
@@ -40,14 +41,14 @@ const productBase = [
 /**
  * Rules for POST /api/products/
  */
-export const createProductRules: ValidationChain[] = [
+export const createProductRules = withValidation([
   ...productBase,
-]
+]);
 
 /**
  * Rules for PUT /api/products/:productId
  * All fields are optional
  */
-export const updateProductRules: ValidationChain[] = [
+export const updateProductRules = withValidation([
   ...productBase.map(rule => rule.optional()),
-]
+]);

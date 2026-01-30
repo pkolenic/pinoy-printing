@@ -1,4 +1,5 @@
 import { body, ValidationChain } from 'express-validator';
+import { withValidation } from "./common.js";
 
 // Shared Base Rules
 const emailBase = body('email')
@@ -28,23 +29,23 @@ const passwordBase = body('password')
 /**
  * Rules for POST /api/users/
  */
-export const createUserRules: ValidationChain[] = [
+export const createUserRules = withValidation([
   emailBase,
   phoneBase.optional(),
   passwordBase,
-]
+]);
 
 /**
  * Rules for PUT /api/users/:userId
  */
-export const updateUserRules: ValidationChain[] = [
+export const updateUserRules = withValidation([
   emailBase.optional(),
   phoneBase.optional(),
-]
+]);
 
 /**
  * Rules for PUT /api/users/:userId/password
  */
-export const updatePasswordRules: ValidationChain[] = [
+export const updatePasswordRules = withValidation([
   passwordBase,
-]
+]);

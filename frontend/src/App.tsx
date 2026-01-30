@@ -1,4 +1,8 @@
-import { Fragment, useState } from 'react';
+import {
+  Fragment,
+  useEffect,
+  useState,
+} from 'react';
 import {
   CssBaseline
 } from '@mui/material';
@@ -9,7 +13,7 @@ import {
   Footer,
 } from './layout';
 import { Profile, Shop } from './pages';
-import { useAuthSession } from "./hooks";
+import { useAuthSession, useEnv } from "./hooks";
 import "./App.css"
 
 export function App() {
@@ -17,55 +21,41 @@ export function App() {
     isAuthenticated,
     isLoading,
     errorMessage,
-    userProfile,
-    token,
+    isSessionActive,
     loginWithRedirect
   } = useAuthSession();
-
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const authenticationRequired = useEnv(import.meta.env.VITE_REQUIRE_AUTHENTICATION, false);
 
-  // Redirect if not authenticated
-  if (!isAuthenticated && !isLoading) {
-    loginWithRedirect().then();
-    return null;
+  useEffect(() => {
+    if (authenticationRequired && !isLoading && !isAuthenticated) {
+      loginWithRedirect();
+    }
+  }, [isAuthenticated, isLoading, loginWithRedirect]);
+
+  if (isLoading) {
+    return <LoadingPanel/>;
   }
 
-  const renderContent = () => {
-    if (isLoading) {
-      return <LoadingPanel/>;
-    }
+  if (errorMessage) {
+    return <MessagePanel severity="error" title="Something went wrong" message={errorMessage}/>;
+  }
 
-    if (errorMessage) {
-      return <MessagePanel severity="error" title="Something went wrong" message={errorMessage}/>;
-    }
-
-    if (isAuthenticated && token && userProfile) {
-      return (
-        <Fragment>
-          <ShopAppBar
-            onProfileClick={() => setIsProfileOpen(true)}
-          >
-            <CategoryFilterBar sx={{ display: {xs: 'none', md: 'block'}}}/>
-          </ShopAppBar>
-          <Shop/>
-          <Footer/>
-
-          {isProfileOpen && (
-            <Profile
-              onClose={() => setIsProfileOpen(false)}
-            />
-          )}
-        </Fragment>
-      )
-    }
-
+  const hasAccess = !authenticationRequired || isSessionActive;
+  if (!hasAccess) {
     return null;
-  };
+  }
 
   return (
     <Fragment>
       <CssBaseline/>
-      {renderContent()}
+      <ShopAppBar onProfileClick={() => setIsProfileOpen(true)}>
+        <CategoryFilterBar sx={{ display: { xs: 'none', md: 'block' } }}/>
+      </ShopAppBar>
+      <Shop/>
+      <Footer/>
+
+      {isProfileOpen && (<Profile onClose={() => setIsProfileOpen(false)}/>)}
     </Fragment>
   );
 }

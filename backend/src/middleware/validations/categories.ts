@@ -1,4 +1,5 @@
-import { body, ValidationChain } from 'express-validator';
+import { body } from 'express-validator';
+import { withValidation } from './common.js';
 
 // Base rule for category names
 const categoryNameBase = body('name')
@@ -14,15 +15,15 @@ const categoryParentBase = body('parent')
 /**
  * Rules for POST /api/categories/
  */
-export const createCategoryRules: ValidationChain[] = [
+export const createCategoryRules = withValidation([
   categoryNameBase,
-  categoryParentBase
-];
+  categoryParentBase,
+]);
 
 /**
  * Rules for PUT /api/categories/:categoryId
  */
-export const updateCategoryRules: ValidationChain[] = [
+export const updateCategoryRules = withValidation([
   categoryNameBase.optional(), // Allows partial updates
-  categoryParentBase
-];
+  categoryParentBase,
+]);

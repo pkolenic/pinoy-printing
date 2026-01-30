@@ -22,7 +22,7 @@ interface Props {
   sx?: SxProps<Theme>;
 }
 
-export const CategoryFilterBar = ({ className, sx }: Props) => {
+export const CategoryFilterBar = (props: Props) => {
   const dispatch = useAppDispatch();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -39,11 +39,7 @@ export const CategoryFilterBar = ({ className, sx }: Props) => {
   }
 
   return (
-    <Container
-      maxWidth="lg"
-      className={className}
-      sx={sx}
-    >
+    <Container maxWidth="lg" {...props}>
       <Box
         p={isMobile ? 0 : 1}
         sx={{

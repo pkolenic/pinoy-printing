@@ -14,7 +14,7 @@ const router: Router = Router();
 
 /**
  * Global API Middleware
- * Protects all routes mounted below this line with JWT verification.
+ * Protects all routes mounted below this line with JWT verification when required.
  */
 router.use(jwtCheck);
 

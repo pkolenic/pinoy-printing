@@ -6,13 +6,19 @@ import {
 } from 'express';
 import { StatusCodes } from "http-status-codes";
 import { User } from "../models/index.js";
+import { AppError } from '../utils/errors/index.js'
 
 /**
  * Middleware to check if the user has the required permission.
  * Assumes req.auth.payload is populated by prior authentication middleware (like express-oauth2-jwt-bearer).
  */
 export const checkPermissions = (requiredPermission: string, isSelf: boolean = false): RequestHandler => {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    // If no permission is required, immediately skip to the next middleware
+    if (!requiredPermission) {
+      return next();
+    }
+
     const userPermissions: string[] = req.auth?.payload.permissions || [];
 
     // Check explicit permission
@@ -33,11 +39,11 @@ export const checkPermissions = (requiredPermission: string, isSelf: boolean = f
         }
       } catch (error) {
         // Handle database errors (e.g., invalid ID format)
-        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ error: 'Internal Server Error' });
-        return;
+        const message = error instanceof Error ? error.message : 'Internal Server Error';
+        return next(new AppError(message, StatusCodes.INTERNAL_SERVER_ERROR));
       }
     }
     // Default to Forbidden if no conditions are met
-    res.status(StatusCodes.FORBIDDEN).json({ error: 'Forbidden: Not Authorized' });
+    return next(new AppError('Forbidden: Not Authorized', StatusCodes.FORBIDDEN));
   };
 };

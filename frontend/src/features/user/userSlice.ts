@@ -84,7 +84,7 @@ export const userSlice = createApi({
     }),
     createAddress: build.mutation<Address, { id: string; data: Partial<Address>}>({
       query: ({id, data}) => ({
-        url: `/${id}/address/create`,
+        url: `/${id}/address`,
         method: 'POST',
         body: data,
       }),

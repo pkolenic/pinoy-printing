@@ -1,65 +1,55 @@
-import { Router, RequestHandler } from 'express';
-
+import { Router } from 'express';
+import { createRouteGuards } from "../utils/routeGuards.js";
 import {
   createOrder,
 } from '../controllers/orders.js';
-import {
-  checkPermissions,
-  createAttachMiddleware,
-  attachAddress,
-  jwtCheck,
-} from "../middleware/index.js";
 
 import {
   Order,
   User
 } from '../models/index.js';
 
-// 'attachOrder' is a RequestHandler that attaches the order document to the request object
-const attachOrder: RequestHandler = createAttachMiddleware(Order, 'orderId', 'order');
+//Define allowed permission strings
+type OrderPermission =
+  | 'read:orders'
+  | 'create:orders'
+  | 'update:orders'
+  | 'delete:orders'
+  | 'self'; // Placeholder for self-only logic
 
-// 'attachUser' is a RequestHandler that attaches the user document to the request object
-const attachUser: RequestHandler = createAttachMiddleware(User, 'userId', 'user');
+// ROUTE GUARDS
+const { guard, guardedResource, guardedMultiResource } = createRouteGuards<OrderPermission>(User, 'userId', 'user');
 
 // Define a Router instance
-export const router: Router = Router();
+export const router = Router();
 
-/**
- * Global User Middleware
- * Protects all routes mounted below this line with JWT verification.
- */
-router.use(jwtCheck);
+// ROUTES
+router.get('/', guard('read:orders'), /*TODO - getOrders*/);
 
-/**
- * Create a new order for a user
- * Permissions: self (the target user)
- */
-router.post('/:userId/create',
-  checkPermissions('self', true),  // Uses 'self' as a placeholder for logic
-  attachUser,
-  attachAddress,
-  createOrder,
-);
+router.route('/:userId')
+  .post(guardedResource('create:orders', [/* TODO - createOrderRules */], true), createOrder)
 
-/**
- * Get a specific order for a user
- * Permissions: read:orders OR isSelf (the target user)
- */
-router.get('/:userId/order/:orderId',
-  checkPermissions('read:orders', true),
-  attachOrder,
-  attachUser,
-  // TODO - getOrder
-)
+// USER ORDER ROUTES
+const orderRouter = Router({ mergeParams: true });
+orderRouter.route('/:orderId')
+  .get(guardedMultiResource('read:orders', [
+      { model: User, param: 'userId', key: 'user' },
+      { model: Order, param: 'orderId', key: 'order' }
+    ], [/* no validation rules */], true),
+    /* getOrder */
+  )
+  .delete(guardedMultiResource('delete:orders', [
+      { model: User, param: 'userId', key: 'user' },
+      { model: Order, param: 'orderId', key: 'order' }
+    ], [/* no validation rules */]),
+    /* deleteOrder */)
+  .put(guardedMultiResource('update:orders', [
+      { model: User, param: 'userId', key: 'user' },
+      { model: Order, param: 'orderId', key: 'order' }
+    ], [/* TODO updateOrderRules */], true),
+    /* updateOrder */)
 
-/**
- * Get all orders
- * Permissions: read:orders
- */
-router.get('/',
-  checkPermissions('read:orders'),
-  // TODO - getOrders,
-)
+router.use('/:userId/order', orderRouter);
 
 // Export the router
 export default router;

@@ -1,6 +1,7 @@
 import {styled, alpha} from '@mui/material/styles';
 import InputBase from '@mui/material/InputBase';
 import SearchIcon from '@mui/icons-material/Search';
+import { SxProps, Theme } from '@mui/material';
 
 const Search = styled('div')(({theme}) => ({
   position: 'relative',
@@ -50,9 +51,13 @@ const StyledInputBase = styled(InputBase)(({theme}) => ({
   },
 }));
 
-export const SearchBox = () => {
+interface SearchBoxProps {
+  sx?: SxProps<Theme>;
+}
+
+export const SearchBox = (props: SearchBoxProps) => {
   return (
-    <Search>
+    <Search {...props}>
       <SearchIconWrapper>
         <SearchIcon/>
       </SearchIconWrapper>

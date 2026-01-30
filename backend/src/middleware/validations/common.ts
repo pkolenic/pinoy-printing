@@ -1,10 +1,10 @@
+import { RequestHandler } from 'express';
+import { StatusCodes } from "http-status-codes";
 import {
-  RequestHandler
-} from 'express';
-import {
-  validationResult,
   Result,
+  ValidationChain,
   ValidationError,
+  validationResult,
 } from 'express-validator';
 
 /**
@@ -15,6 +15,14 @@ export const validate: RequestHandler = (req, res, next) => {
   if (errors.isEmpty()) {
     return next();
   }
-  // Return early with 400 Bad Request if validation fails
-  res.status(400).json({ errors: errors.array() });
+  res.status(StatusCodes.BAD_REQUEST).json({ errors: errors.array() });
 };
+
+/**
+ * Helper to bundle rules with the `validate` middleware.
+ * @param rules
+ */
+export const withValidation = (rules: ValidationChain[]): (ValidationChain | RequestHandler)[] => [
+  ...rules,
+  validate
+];

@@ -1,9 +1,9 @@
 import {
   cloneElement,
-  ElementType,
   Fragment,
-  MouseEvent,
   ReactElement,
+  useCallback,
+  useMemo,
   useState,
 } from 'react';
 import {
@@ -16,12 +16,8 @@ import {
   Avatar,
   Box,
   Container,
-  Divider,
   IconButton,
-  ListItemIcon,
   Menu,
-  MenuItem,
-  SvgIconProps,
   Toolbar,
   Tooltip,
   Typography,
@@ -29,29 +25,20 @@ import {
 } from '@mui/material';
 import {
   Dashboard,
+  Login,
   Logout,
   PersonOutline,
   ReceiptLong
 } from "@mui/icons-material";
 import { SearchBox } from '../../components';
+import { NavMenuItem, MenuOption } from "../menu";
 
 interface Props {
   children?: ReactElement<{ elevation?: number }>;
   onProfileClick: () => void;
 }
 
-type MenuOption = {
-  id: string;
-  label?: string;
-  icon?: ElementType<SvgIconProps>;
-  onClick?: () => void;
-  color?: string;
-  hide?: boolean;
-  type?: 'option' | 'divider';
-}
-
-function ElevationScroll(props: Props) {
-  const { children } = props;
+function ElevationScroll({ children }: { children: ReactElement<{ elevation?: number }> }) {
   const trigger = useScrollTrigger({
     disableHysteresis: true,
     threshold: 0,
@@ -64,84 +51,79 @@ function ElevationScroll(props: Props) {
     : null;
 }
 
-export const ShopAppBar = (props: Props) => {
-  const { children, onProfileClick } = props;
-  const [appBarRef, { height} ] = useElementSize();
+export const ShopAppBar = ({ children, onProfileClick }: Props) => {
+  const [appBarRef, { height }] = useElementSize();
+  const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
 
   const {
+    loginWithRedirect,
     handleLogout,
+    isSessionActive,
     userProfile: user = { name: "User", picture: "/static/images/avatar/2.jpg", role: "customer" },
   } = useAuthSession();
-  const companyTitle = import.meta.env.VITE_SHOP_NAME || 'Sample0';
 
-  const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
   const isStaff = ['admin', 'staff', 'owner'].includes(user.role);
+  const handleCloseUserMenu = useCallback(() => setAnchorElUser(null), []);
 
-  const options: MenuOption[] = [
-    {
-      id: 'profile' as const,
-      label: 'View Profile',
-      icon: PersonOutline,
-      onClick: () => {
-        onProfileClick();
-        handleCloseUserMenu();
-      },
-      color: 'primary.main',
-    },
-    {
-      id: 'orders' as const,
-      type: 'option',
-      label: 'See Orders',
-      icon: ReceiptLong,
-      onClick: () => {
-        console.log('Seeing Orders...');
-        handleCloseUserMenu();
-      },
-      color: 'primary.main',
-      hide: isStaff,
-    },
-    {
-      id: 'dashboard' as const,
-      type: 'option',
-      label: 'Show Dashboard',
-      icon: Dashboard,
-      onClick: () => {
-        console.log('Show Dashboard...');
-        handleCloseUserMenu();
-      },
-      color: 'primary.main',
-      hide: !isStaff,
-    },
-    {
-      id: 'divider' as const,
-      type: 'divider',
-    },
-    {
-      id: 'logout' as const,
-      type: 'option',
-      label: 'Logout',
-      icon: Logout,
-      onClick: () => {
-        handleLogout();
-      },
-      color: 'error.main',
-    }
-  ]
-
-  // Filter out options that are hidden
-  const visibleOptions: MenuOption[] = options.filter(option => !option.hasOwnProperty('hide') || !option.hide);
-
-  const handleOpenUserMenu = (event: MouseEvent<HTMLElement>) => {
-    setAnchorElUser(event.currentTarget);
+  const menuConfig = {
+    id: "menu-appbar",
+    sx: { mt: '5px' },
+    anchorEl: anchorElUser,
+    anchorOrigin: { vertical: 'bottom', horizontal: 'left' } as const,
+    transformOrigin: { vertical: 'top', horizontal: 'left' } as const,
+    keepMounted: true,
   };
 
-  const handleCloseUserMenu = () => {
-    setAnchorElUser(null);
-  };
+  const visibleOptions = useMemo(() => {
+    const allOptions: MenuOption[] = [
+      {
+        id: 'profile',
+        label: 'View Profile',
+        icon: PersonOutline,
+        onClick: onProfileClick,
+        hide: !isSessionActive,
+      },
+      {
+        id: 'orders',
+        label: 'See Orders',
+        icon: ReceiptLong,
+        onClick: () => console.log('Orders'),
+        hide: isStaff || !isSessionActive
+      },
+      {
+        id: 'dashboard',
+        label: 'Show Dashboard',
+        icon: Dashboard,
+        onClick: () => console.log('Dashboard'),
+        hide: !isStaff
+      },
+      {
+        id: 'sep',
+        type: 'divider',
+        hide: !isSessionActive,
+      },
+      {
+        id: 'login',
+        label: 'Login',
+        icon: Login,
+        onClick: loginWithRedirect,
+        hide: isSessionActive,
+      },
+      {
+        id: 'logout',
+        label: 'Logout',
+        icon: Logout,
+        onClick: handleLogout,
+        color: 'error.main',
+        hide: !isSessionActive
+      },
+    ];
+    return allOptions.filter(opt => !opt.hide);
+  }, [isSessionActive, isStaff, onProfileClick, handleLogout, loginWithRedirect]);
 
   return (
     <Fragment>
-      <ElevationScroll {...props}>
+      <ElevationScroll>
         <AppBar
           ref={appBarRef}
           color="inherit"
@@ -154,101 +136,52 @@ export const ShopAppBar = (props: Props) => {
           <Container
             maxWidth="lg"
             sx={{
-              borderBottom: 0,
-              md: {
-                borderBottom: 1,
-                borderColor: 'divider'
-              }
+              borderColor: 'divider',
+              borderBottomStyle: 'solid',
+              borderBottomWidth: { xs: 0, md: '1px' },
             }}
           >
             <Toolbar
               disableGutters
               sx={{
                 flexDirection: { xs: 'column', lg: 'row' },
-                justifyContent: { xs: 'flex-start', lg: 'space-between' },
-                alignItems: { xs: 'flex-start', lg: 'center' },
+                justifyContent: 'space-between',
               }}
             >
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  flexGrow: { xs: 0, lg: 1 },
-                  mb: { xs: 1, lg: 0 },
-                }}
-              >
-                <Box sx={{ flexGrow: 0 }}>
-                  <Tooltip title="Open settings">
-                    <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                      <Avatar
-                        alt={user.name}
-                        src={user.picture}
-                        sx={{ width: 32, height: 32 }}
-                      />
-                    </IconButton>
-                  </Tooltip>
-                  <Menu
-                    sx={{ mt: '45px' }}
-                    id="menu-appbar"
-                    anchorEl={anchorElUser}
-                    anchorOrigin={{
-                      vertical: 'top',
-                      horizontal: 'left',
-                    }}
-                    keepMounted
-                    transformOrigin={{
-                      vertical: 'top',
-                      horizontal: 'left',
-                    }}
-                    open={Boolean(anchorElUser)}
-                    onClose={handleCloseUserMenu}
-                  >
-                    {visibleOptions.map((option) => {
-                      // Handle Divider
-                      if (option.type === 'divider') {
-                        return <Divider key={option.id}/>;
-                      }
-
-                      // Converty to Capitalized variable
-                      const Icon = option.icon;
-
-                      return (
-                        <MenuItem
-                          key={option.id}
-                          onClick={option.onClick}
-                          sx={{
-                            color: option.color || 'primary.main',
-                            '& .MuiListItemIcon-root': {
-                              color: option.color || 'primary.main',
-                            },
-                          }}
-                        >
-                          <ListItemIcon>
-                            {/* Render only if Icon exists */}
-                            {Icon && <Icon fontSize="small"/>}
-                          </ListItemIcon>
-                          <Typography sx={{ textAlign: 'center' }}>{option.label}</Typography>
-                        </MenuItem>
-                      );
-                    })}
-                  </Menu>
-                </Box>
-                <Typography
-                  variant="h6"
-                  component="div"
-                  sx={{ ml: 2, mr: 2 }}
+              <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+                <Tooltip title="Open settings">
+                  <IconButton onClick={(e) => setAnchorElUser(e.currentTarget)} sx={{ p: 0 }}>
+                    <Avatar
+                      alt={user.name}
+                      src={user.picture}
+                      sx={{ width: 32, height: 32 }}
+                    />
+                  </IconButton>
+                </Tooltip>
+                <Menu
+                  {...menuConfig}
+                  open={Boolean(anchorElUser)}
+                  onClose={handleCloseUserMenu}
                 >
-                  {companyTitle}
+                  {visibleOptions.map((opt) => (
+                    <NavMenuItem
+                      key={opt.id}
+                      option={opt}
+                      onAction={() => {
+                        opt.onClick?.();
+                        handleCloseUserMenu();
+                      }}
+                    />
+                  ))}
+                </Menu>
+                <Typography variant="h6" sx={{ ml: 2, mr: 2 }}>
+                  {import.meta.env.VITE_SHOP_NAME || 'Sample0'}
                 </Typography>
               </Box>
-              <SearchBox/>
+              <SearchBox sx={{ mt: { xs: 2, lg: 0 } }}/>
             </Toolbar>
           </Container>
-          {children ? (
-            <Fragment>
-              {children}
-            </Fragment>
-          ) : null}
+          {children}
         </AppBar>
       </ElevationScroll>
       <Toolbar

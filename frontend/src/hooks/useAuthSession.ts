@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import { useAuth0 } from '@auth0/auth0-react';
@@ -28,19 +29,23 @@ export const useAuthSession = () => {
 
   const handleLogout = useCallback(() => {
     setIsLoggingOut(true);
-    logout({logoutParams: {returnTo: window.location.origin}})
-      .then(() => {
-        dispatch(authFeature.clearToken());
-      });
-  }, [dispatch, logout]);
+    logout({ logoutParams: { returnTo: window.location.origin } });
+  }, [logout]);
 
   useEffect(() => {
     if (isAuthenticated && !token && !isLoggingOut) {
       getAccessTokenSilently()
         .then(t => dispatch(authFeature.setToken(t)))
         .catch(err => {
+          // Specifically, check for the 'missing_refresh_token' error
+          if (err.error === 'missing_refresh_token' || err.message?.includes('Missing Refresh Token')) {
+            console.warn("Silent token acquisition skipped: Session already ended.");
+            return; // Exit silently without triggering handleLogout
+          }
+
+          // Handle other legitimate failures
           console.error("Token acquisition failed, logging out:", err);
-          handleLogout(); // Automatically log out if token retrieval fails
+          handleLogout();
         });
     }
   }, [isAuthenticated, token, dispatch, getAccessTokenSilently, isLoggingOut, handleLogout]);
@@ -48,6 +53,12 @@ export const useAuthSession = () => {
   const profile = userFeature.useGetUserQuery(
     (isAuthenticated && token && auth0User?.account?.id) ? auth0User.account.id : skipToken
   );
+
+  const isSessionActive = useMemo(() =>
+      !!(isAuthenticated && token && profile.data),
+    [isAuthenticated, token, profile.data]
+  );
+  const isFullyLoaded = isAuthenticated ? isSessionActive : !isLoading;
 
   const getErrorMessage = (err: FetchBaseQueryError | SerializedError | Error | undefined): string => {
     if (!err) return "";
@@ -58,9 +69,10 @@ export const useAuthSession = () => {
 
   return {
     isAuthenticated,
+    isSessionActive,
     handleLogout,
     loginWithRedirect,
-    isLoading: isLoading || profile.isLoading,
+    isLoading: !isFullyLoaded || profile.isLoading || isLoading || isLoggingOut,
     errorMessage: getErrorMessage(error),
     userProfile: profile.data,
     token,
