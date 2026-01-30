@@ -62,7 +62,6 @@
     - MONGO_DB: MongoDB database name
   - Redis Settings:
     - REDIS_URI: Redis connection string
-    - REDIS_LOGGING: Redis logging flag
 
 ### Auth0
 #### 1. Create Application
