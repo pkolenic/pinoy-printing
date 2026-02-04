@@ -2,12 +2,16 @@ import { RequestHandler } from "express";
 import { FilterQuery } from 'mongoose';
 import { StatusCodes } from "http-status-codes";
 import { matchedData } from 'express-validator';
+import fs from 'fs';
+import csv from 'csv-parser';
 
 import { AppError } from '../utils/errors/index.js';
 
 import {
   Product,
   IProduct,
+  IProductImportRow,
+  CSV_PRODUCT_HEADERS,
   getRelatedCategoryIds,
 } from '../models/index.js'
 import { paginateResponse } from "../utils/paginationHelper.js";
@@ -17,11 +21,20 @@ import { buildSort, parsePagination } from "../utils/controllers/queryHelper.js"
  * Sanitizes product data based on user permissions
  */
 const sanitizeProduct = (product: IProduct, isStaff: boolean): IProduct => {
+  // Create a base object that ensures customizationSchema is at least set null
+  const baseProduct = {
+    ...product,
+    customizationSchema: product.customizationSchema ?? null,
+  };
+
   if (isStaff) {
-    return product;
+    return baseProduct as IProduct;
   }
-  const { quantity, ...rest } = product;
-  return rest as IProduct;
+
+  // For non-staff, exclude sensitive fields
+  const { quantity, showIfOutOfStock, ...publicProduct } = baseProduct;
+
+  return publicProduct as IProduct;
 };
 
 /**
@@ -79,7 +92,14 @@ export const getProducts: RequestHandler = async (req, res, next) => {
     const isStaff = userPermissions.includes('read:inventory')
 
     // Build Query
-    type queryType = { search?: string, category?: string, minPrice?: number, maxPrice?: number, maxInventory?: number, sortBy?: string};
+    type queryType = {
+      search?: string,
+      category?: string,
+      minPrice?: number,
+      maxPrice?: number,
+      maxInventory?: number,
+      sortBy?: string
+    };
     const query: FilterQuery<IProduct> = {};
     const { search, category, minPrice, maxPrice, maxInventory, sortBy } = req.query as queryType
 
@@ -139,7 +159,7 @@ export const getProduct: RequestHandler = async (req, res, next) => {
 
     const userPermissions = req.auth?.payload.permissions || [];
     const isStaff = userPermissions.includes('read:inventory')
-    const productResponse = sanitizeProduct(product.toObject(), isStaff);
+    const productResponse = sanitizeProduct(product.toJSON(), isStaff);
 
     res.status(StatusCodes.OK).json(productResponse);
   } catch (error) {
@@ -193,3 +213,123 @@ export const deleteProduct: RequestHandler = async (req, res, next) => {
     next(error);
   }
 }
+
+/**
+ * Import products from a CSV file
+ * @route POST /api/products/import
+ * @permission create:products
+ */
+export const importProducts: RequestHandler = async (req, res, next) => {
+  const filePath = req.file!.path;
+  const results: IProductImportRow[] = [];
+
+  // Parse flags
+  const isPreview = req.query.preview === 'true';
+  const allowUpdate = req.query.allowUpdate === 'true';
+
+  fs.createReadStream(filePath)
+    .pipe(csv())
+    .on('data', (data: IProductImportRow) => results.push(data))
+    .on('end', async () => {
+      try {
+        const stats = { created: 0, updated: 0, errors: 0 };
+        const importResults: any[] = [];
+
+        for (const row of results) {
+          let status: 'created' | 'updated' | 'error' = 'error';
+          let errorMessage: string | null = null;
+
+          try {
+            const productData = {
+              ...row,
+              price: parseFloat(row.price),
+              quantity: parseInt(row.quantity, 10),
+              categories: [row.category.trim()],
+              showIfOutOfStock: row.showIfOutOfStock?.toLowerCase() === 'true',
+              customizationSchema: row.customizationSchema?.trim() ? JSON.parse(row.customizationSchema) : {},
+            };
+
+            const existingProduct = await Product.findOne({ sku: productData.sku });
+
+            // Logic Check: Handle Duplicate SKU without throwing
+            if (existingProduct && !allowUpdate) {
+              status = 'error';
+              errorMessage = `SKU ${row.sku} already exists.`;
+            } else {
+              // Determine Action Type
+              status = existingProduct ? 'updated' : 'created';
+
+              if (isPreview) {
+                // PREVIEW MODE
+                const testDoc = existingProduct
+                  ? Object.assign(existingProduct, productData)
+                  : new Product(productData);
+
+                await testDoc.validate();
+              } else {
+                // EXECUTION MODE
+                if (existingProduct) {
+                  Object.assign(existingProduct, productData);
+                  await existingProduct.save();
+                } else {
+                  await Product.create(productData);
+                }
+              }
+            }
+
+            // If the logic above resulted in an error (the duplicate SKU case),
+            // the catch block won't run, so we update stats here.
+            if (status === 'error') {
+              stats.errors++;
+            } else {
+              status === 'updated' ? stats.updated++ : stats.created++;
+            }
+          } catch (err: any) {
+            // This catches Mongoose Validation errors or JSON.parse errors
+            status = 'error';
+            errorMessage = err.message;
+            stats.errors++;
+          }
+
+          // Push the full row data + metadata
+          importResults.push({
+            ...row,
+            status,
+            error: errorMessage
+          });
+        }
+
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+
+        res.status(StatusCodes.OK).json({
+          message: isPreview ? "Preview completed" : "Import completed",
+          isPreview,
+          summary: stats,
+          results: importResults // Every row from the CSV is here
+        });
+      } catch (error) {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+        next(error);
+      }
+    });
+};
+
+/**
+ * Export a product template for import
+ * @route GET /api/products/export-template
+ * @permission create:products
+ */
+export const getImportTemplate: RequestHandler = (req, res) => {
+  // Join headers with commas
+  const csvContent = CSV_PRODUCT_HEADERS.join(',') + '\n';
+
+  // Set headers to trigger a browser download
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename=product_import_template.csv');
+
+  return res.status(200).send(csvContent);
+};

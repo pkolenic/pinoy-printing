@@ -24,6 +24,17 @@ export interface IProduct {
   showIfOutOfStock?: boolean;
 }
 
+export type IProductImportRow = Omit<
+  IProduct,
+  'categories' | 'category' | 'price' | 'quantity' | 'customizationSchema' | 'showIfOutOfStock'
+> & {
+  category: string; // The single Leaf Category ID from the CSV
+  price: string;
+  quantity: string;
+  showIfOutOfStock?: string;
+  customizationSchema?: string;
+};
+
 /**
  * Hydrated type for Mongoose Documents
  * Use this for "this" in Schema methods/hooks and Model definitions.
@@ -32,6 +43,19 @@ export type IProductDocument = HydratedDocument<IProduct>;
 
 // Define the Model type for use in static contexts
 type ProductModel = Model<IProduct>;
+
+export const CSV_PRODUCT_HEADERS = [
+  'sku',
+  'name',
+  'description',
+  'details',
+  'price',
+  'image',
+  'category',
+  'quantity',
+  'showIfOutOfStock',
+  'customizationSchema'
+];
 
 /**
  * Define the Mongoose Schema for the Product Model.
