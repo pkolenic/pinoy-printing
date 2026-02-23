@@ -23,6 +23,7 @@
     "colors": "^1.4.0",
     "cors": "^2.8.5",
     "csv-parser": "^3.2.0",
+    "deep-object-diff": "^1.1.9",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "express-oauth2-jwt-bearer": "^1.7.1",

@@ -24,17 +24,6 @@ export interface IProduct {
   showIfOutOfStock?: boolean;
 }
 
-export type IProductImportRow = Omit<
-  IProduct,
-  'categories' | 'category' | 'price' | 'quantity' | 'customizationSchema' | 'showIfOutOfStock'
-> & {
-  category: string; // The single Leaf Category ID from the CSV
-  price: string;
-  quantity: string;
-  showIfOutOfStock?: string;
-  customizationSchema?: string;
-};
-
 /**
  * Hydrated type for Mongoose Documents
  * Use this for "this" in Schema methods/hooks and Model definitions.
@@ -74,7 +63,6 @@ export const ProductSchema = new Schema<IProduct, ProductModel>({
     required: true,
     unique: true,
     trim: true,
-    lowercase: true,
     index: true,
   },
   description: {

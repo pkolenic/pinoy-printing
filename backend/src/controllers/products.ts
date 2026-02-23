@@ -2,20 +2,66 @@ import { RequestHandler } from "express";
 import { FilterQuery } from 'mongoose';
 import { StatusCodes } from "http-status-codes";
 import { matchedData } from 'express-validator';
+import { detailedDiff } from 'deep-object-diff';
 import fs from 'fs';
 import csv from 'csv-parser';
 
 import { AppError } from '../utils/errors/index.js';
 
 import {
+  Category,
+  ICategory,
+  ICategoryDocument,
   Product,
   IProduct,
-  IProductImportRow,
   CSV_PRODUCT_HEADERS,
   getRelatedCategoryIds,
 } from '../models/index.js'
 import { paginateResponse } from "../utils/paginationHelper.js";
 import { buildSort, parsePagination } from "../utils/controllers/queryHelper.js";
+
+type IProductImportRow = Omit<
+  IProduct,
+  'categories' | 'category' | 'price' | 'quantity' | 'customizationSchema' | 'showIfOutOfStock'
+> & {
+  category: string; // The single Leaf Category ID from the CSV
+  price: string;
+  quantity: string;
+  showIfOutOfStock?: string;
+  customizationSchema?: string;
+};
+
+/**
+ * The shape of the detailed-diff library's output
+ */
+interface IProductDiff {
+  added: Record<string, any>;
+  deleted: Record<string, any>;
+  updated: Record<string, any>;
+}
+
+/**
+ * The individual row result sent back to the client
+ */
+interface IImportResult extends IProductImportRow {
+  status: 'created' | 'updated' | 'error';
+  diff: IProductDiff | null;
+  error: string | null;
+}
+
+/**
+ * The response sent back to the client after the import is complete.
+ */
+interface IImportResponse {
+  message: string;
+  isPreview: boolean;
+  summary: {
+    created: number;
+    updated: number;
+    errors: number;
+  };
+  results: IImportResult[];
+}
 
 /**
  * Sanitizes product data based on user permissions
@@ -220,95 +266,141 @@ export const deleteProduct: RequestHandler = async (req, res, next) => {
  * @permission create:products
  */
 export const importProducts: RequestHandler = async (req, res, next) => {
-  const filePath = req.file!.path;
-  const results: IProductImportRow[] = [];
+  if (!req.file) {
+    return res.status(StatusCodes.BAD_REQUEST).json({ message: "No file uploaded" });
+  }
 
-  // Parse flags
+  const filePath = req.file.path;
+  const results: IProductImportRow[] = [];
   const isPreview = req.query.preview === 'true';
   const allowUpdate = req.query.allowUpdate === 'true';
 
   fs.createReadStream(filePath)
     .pipe(csv())
     .on('data', (data: IProductImportRow) => results.push(data))
+    .on('error', (error) => {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+      next(error);
+    })
     .on('end', async () => {
       try {
         const stats = { created: 0, updated: 0, errors: 0 };
-        const importResults: any[] = [];
+        const importResults: IImportResult[] = [];
 
         for (const row of results) {
           let status: 'created' | 'updated' | 'error' = 'error';
           let errorMessage: string | null = null;
+          let diff: IProductDiff | null = null;
 
           try {
+            // 1. Format and Parse CSV data
+            const sku = row.sku?.trim();
             const productData = {
-              ...row,
+              sku,
+              name: row.name?.trim(),
+              description: row.description?.trim(),
+              details: row.details?.trim(),
               price: parseFloat(row.price),
               quantity: parseInt(row.quantity, 10),
-              categories: [row.category.trim()],
               showIfOutOfStock: row.showIfOutOfStock?.toLowerCase() === 'true',
               customizationSchema: row.customizationSchema?.trim() ? JSON.parse(row.customizationSchema) : {},
+              categories: row.category?.trim() ? [row.category.trim()] : [],
             };
 
-            const existingProduct = await Product.findOne({ sku: productData.sku });
+            const existingProduct = await Product.findOne({ sku });
 
-            // Logic Check: Handle Duplicate SKU without throwing
+            // 2. Logic Check: Handle Duplicate SKU
             if (existingProduct && !allowUpdate) {
               status = 'error';
               errorMessage = `SKU ${row.sku} already exists.`;
             } else {
-              // Determine Action Type
-              status = existingProduct ? 'updated' : 'created';
+              // CATEGORY SYNC: Simulate pre-save middleware logic for the diff
+              if (productData.categories.length > 0) {
+                const leafId = productData.categories[0];
+                const leafCategory = await Category.findById(leafId).lean<ICategory>();
 
-              if (isPreview) {
-                // PREVIEW MODE
-                const testDoc = existingProduct
-                  ? Object.assign(existingProduct, productData)
-                  : new Product(productData);
+                if (leafCategory && leafCategory.path) {
+                  const slugs = leafCategory.path.split('/');
+                  const ancestorDocs = await Category.find({
+                    slug: { $in: slugs }
+                  }).select('_id').lean<ICategoryDocument[]>();
 
-                await testDoc.validate();
-              } else {
-                // EXECUTION MODE
-                if (existingProduct) {
+                  // Set the full array of ObjectIds so the diff is clean
+                  productData.categories = ancestorDocs.map(doc => doc._id.toString());
+                }
+              }
+
+              if (existingProduct) {
+                status = 'updated';
+
+                // Calculate Diff (Current DB state vs. Incoming CSV state)
+                const currentData = JSON.parse(JSON.stringify(existingProduct.toObject()));
+                const targetData = JSON.parse(JSON.stringify(productData));
+
+                // Avoid diff noise on customizationSchema if both are effectively empty
+                if (Object.keys(currentData.customizationSchema || {}).length === 0 &&
+                  Object.keys(targetData.customizationSchema || {}).length === 0) {
+                  targetData.customizationSchema = currentData.customizationSchema;
+                }
+
+                diff = detailedDiff(currentData, targetData) as IProductDiff;
+
+                if (isPreview) {
+                  // Validate a merged result without saving
+                  const testDoc = Object.assign(existingProduct, productData);
+                  await testDoc.validate();
+                } else {
                   Object.assign(existingProduct, productData);
                   await existingProduct.save();
+                }
+              } else {
+                status = 'created';
+                const newProduct = new Product(productData);
+
+                if (isPreview) {
+                  await newProduct.validate();
                 } else {
-                  await Product.create(productData);
+                  await newProduct.save();
                 }
               }
             }
 
-            // If the logic above resulted in an error (the duplicate SKU case),
-            // the catch block won't run, so we update stats here.
+            // 3. Update summary statistics
             if (status === 'error') {
               stats.errors++;
             } else {
               status === 'updated' ? stats.updated++ : stats.created++;
             }
           } catch (err: any) {
-            // This catches Mongoose Validation errors or JSON.parse errors
             status = 'error';
             errorMessage = err.message;
             stats.errors++;
           }
 
-          // Push the full row data + metadata
+          // 4. Push row with metadata
           importResults.push({
             ...row,
             status,
+            diff,
             error: errorMessage
           });
         }
 
+        // Cleanup file after processing
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
         }
 
-        res.status(StatusCodes.OK).json({
+        const response: IImportResponse = {
           message: isPreview ? "Preview completed" : "Import completed",
           isPreview,
           summary: stats,
-          results: importResults // Every row from the CSV is here
-        });
+          results: importResults
+        };
+
+        res.status(StatusCodes.OK).json(response);
       } catch (error) {
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
@@ -323,7 +415,7 @@ export const importProducts: RequestHandler = async (req, res, next) => {
  * @route GET /api/products/export-template
  * @permission create:products
  */
-export const getImportTemplate: RequestHandler = (req, res) => {
+export const getImportTemplate: RequestHandler = (_req, res, _next) => {
   // Join headers with commas
   const csvContent = CSV_PRODUCT_HEADERS.join(',') + '\n';
 
