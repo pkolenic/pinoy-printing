@@ -33,6 +33,16 @@ try {
 // CREATE EXPRESS SERVER
 const app: Application = express();
 
+// Trust Proxy settings
+if (process.env.NODE_ENV === 'development') {
+  // In dev, trust the Vite proxy so req.hostname works
+  app.set('trust proxy', true);
+} else {
+  // In production, trust only your real reverse proxy (e.g., Nginx, Cloudflare, ELB)
+  // '1' means trust the first hop (the proxy directly in front of Node)
+  app.set('trust proxy', 1);
+}
+
 // MIDDLEWARE
 app.use(express.json()); // Body Parser Middleware
 app.use(express.urlencoded({extended: false}));

@@ -3,6 +3,7 @@ import {
   ICategoryDocument,
   IOrderDocument,
   IProductDocument,
+  ISiteConfiguration,
   IUserDocument,
 } from '../models/index.js';
 
@@ -25,6 +26,7 @@ declare global {
       order?: IOrderDocument;
       product?: IProductDocument;
       user?: IUserDocument;
+      siteConfig?: ISiteConfiguration;
     }
   }
 }

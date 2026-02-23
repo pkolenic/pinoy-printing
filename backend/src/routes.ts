@@ -1,12 +1,19 @@
-import express, {Router} from 'express';
+import express, { RequestHandler, Router } from 'express';
+import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import apiRoutes from './routes/api.js';
+import siteRoutes from './routes/site.js';
+import net from "net";
+import { SiteConfiguration } from "./models/index.js";
+import { AppError } from "./utils/errors/index.js";
+import { StatusCodes } from "http-status-codes";
 
-const router:Router = Router();
+const router: Router = Router();
 
 // Mount sub-routers
 router.use('/api', apiRoutes);
+router.use('/site', siteRoutes);
 
 // GET current path
 const __filename = fileURLToPath(import.meta.url);
