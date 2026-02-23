@@ -16,6 +16,8 @@ export default defineConfig({
     ],
 
     server: {
+        // Allow local test domains
+        allowedHosts: ['localhost', '.test'],
         open: true,
         port: parseInt(process.env.VITE_FRONTEND_PORT || '5173', 10),
         host: true,
@@ -24,6 +26,15 @@ export default defineConfig({
             "/api": {
                 target: targetUrl,
                 changeOrigin: true,
+            },
+            "/site": {
+                target: targetUrl,
+                changeOrigin: true,
+                configure: (proxy) => {
+                    proxy.on('proxyReq', (proxyReq, req) => {
+                        proxyReq.setHeader('X-Forwarded-Host', req.headers.host || '');
+                    });
+                },
             },
         },
     },

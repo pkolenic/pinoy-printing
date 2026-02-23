@@ -9,6 +9,7 @@ import {
 import {
   useAuthSession,
   useElementSize,
+  useSiteConfig,
 } from "../../hooks";
 
 import {
@@ -175,7 +176,7 @@ export const ShopAppBar = ({ children, onProfileClick }: Props) => {
                   ))}
                 </Menu>
                 <Typography variant="h6" sx={{ ml: 2, mr: 2 }}>
-                  {import.meta.env.VITE_SHOP_NAME || 'Sample0'}
+                  { useSiteConfig('siteName', 'Sample0')}
                 </Typography>
               </Box>
               <SearchBox sx={{ mt: { xs: 2, lg: 0 } }}/>

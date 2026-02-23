@@ -7,6 +7,7 @@ import {
   counterFeature,
   filterFeature,
   quotesFeature,
+  siteFeature,
   userFeature,
 } from "../features";
 
@@ -18,6 +19,7 @@ const rootReducer = combineSlices(
   counterFeature.counterSlice,
   filterFeature.filterSlice,
   quotesFeature.quotesApiSlice,
+  siteFeature.siteApiSlice,
   userFeature.userSlice,
 )
 // Infer the `RootState` type from the root reducer
@@ -34,6 +36,7 @@ export const makeStore = (preloadedState?: Partial<RootState>) => {
       return getDefaultMiddleware().concat(
         categoryFeature.categorySlice.middleware,
         quotesFeature.quotesApiSlice.middleware,
+        siteFeature.siteApiSlice.middleware,
         userFeature.userSlice.middleware,
       )
     },

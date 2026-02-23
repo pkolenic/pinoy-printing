@@ -1,5 +1,8 @@
 import { Fragment } from 'react';
-import { useAppSelector } from '../../hooks';
+import {
+  useAppSelector,
+  useSiteConfig,
+} from '../../hooks';
 import {
   Box,
   Container,
@@ -16,12 +19,14 @@ export const Shop = () => {
 
   const selectedCategory = useAppSelector((state) => state.filter.selectedCategory);
 
+  const {heroTitle, heroDescription, heroImage } = useSiteConfig(['heroTitle', 'heroDescription', 'heroImage']);
+
   return (
     <Fragment>
       <Hero
-        title={import.meta.env.VITE_HERO_TITLE}
-        description={import.meta.env.VITE_HERO_DESCRIPTION}
-        imageUrl={import.meta.env.VITE_HERO_IMAGE}
+        title={heroTitle}
+        description={heroDescription}
+        imageUrl={heroImage}
       />
       <Container>
         <Box sx={{my: 2}}>

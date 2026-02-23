@@ -13,7 +13,7 @@ import {
   Footer,
 } from './layout';
 import { Profile, Shop } from './pages';
-import { useAuthSession, useEnv } from "./hooks";
+import { useAuthSession, useSiteConfig } from "./hooks";
 import "./App.css"
 
 export function App() {
@@ -25,10 +25,10 @@ export function App() {
     loginWithRedirect
   } = useAuthSession();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const authenticationRequired = useEnv(import.meta.env.VITE_REQUIRE_AUTHENTICATION, false);
+  const requireAuthentication = useSiteConfig('requireAuthentication', false);
 
   useEffect(() => {
-    if (authenticationRequired && !isLoading && !isAuthenticated) {
+    if (requireAuthentication && !isLoading && !isAuthenticated) {
       loginWithRedirect();
     }
   }, [isAuthenticated, isLoading, loginWithRedirect]);
@@ -41,7 +41,7 @@ export function App() {
     return <MessagePanel severity="error" title="Something went wrong" message={errorMessage}/>;
   }
 
-  const hasAccess = !authenticationRequired || isSessionActive;
+  const hasAccess = !requireAuthentication || isSessionActive;
   if (!hasAccess) {
     return null;
   }

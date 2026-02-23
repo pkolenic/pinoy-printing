@@ -6,7 +6,8 @@
   "scripts": {
     "start:frontend": "dotenv -- npm start --prefix frontend",
     "start:backend": "dotenv -- npm run dev --prefix backend",
-    "start:dev": "npm run start:frontend & npm run start:backend",
+    "start": "NODE_ENV=production npm run start:frontend",
+    "start:dev": "NODE_ENV=development npm run start:frontend & NODE_ENV=development npm run start:backend",
     "install-all": "npm install --prefix frontend && npm install --prefix backend",
     "test:frontend": "cd frontend && npm test",
     "test:backend": "cd backend && npm test"

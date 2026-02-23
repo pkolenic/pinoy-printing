@@ -8,15 +8,19 @@ import {
 import {
   Phone as PhoneIcon,
 } from '@mui/icons-material';
+import { useSiteConfig } from '../../hooks';
 
 const quickLinks = ['About Us', 'Track Order'];
 const customerServiceLinks = ['Shipping Info', 'Returns & Exchanges', 'FAQ'];
 
 export const Footer = () => {
-  const shopName = import.meta.env.VITE_SHOP_NAME || 'Sample0';
-  const shopAddress = import.meta.env.VITE_SHOP_ADDRESS || '123 Gift Street, Present City';
-  const shopEmail = import.meta.env.VITE_SHOP_EMAIL || 'hello@mcfamtrading.com'
-  const shopPhone = import.meta.env.VITE_SHOP_PHONE || '(585) 123-GIFT';
+
+  const {
+    siteName: shopName = 'Sample0',
+    siteAddress: shopAddress = '123 Gift Street, Present City',
+    siteEmail: shopEmail = 'hello@example.com',
+    sitePhone: shopPhone = '(555) 123-SHOP',
+  } = useSiteConfig(['siteName', 'siteAddress', 'siteEmail', 'sitePhone']);
   const shopPhoneForTelephone = `tel:${shopPhone.replace(/[^\d+]/g, '')}`;
 
   return (

@@ -5,6 +5,7 @@ import {
   grey,
   red,
 } from '@mui/material/colors';
+import { SiteConfig } from "../features/models.ts";
 
 // Augment the palette to include custom colors
 declare module '@mui/material/styles' {
@@ -26,30 +27,29 @@ declare module '@mui/material/Button' {
   }
 }
 
-const theme = createTheme({
+export const getDynamicTheme = (config: SiteConfig) => createTheme({
   palette: {
     primary: {
-      main: import.meta.env.VITE_PRIMARY_COLOR || blue["400"],
+      main: config.primaryColor || import.meta.env.VITE_PRIMARY_COLOR || blue["400"],
     },
     secondary: {
-      main: import.meta.env.VITE_SECONDARY_COLOR || grey["400"],
+      main: config.secondaryColor || import.meta.env.VITE_SECONDARY_COLOR || grey["400"],
     },
     error: {
-      main: import.meta.env.VITE_ERROR_COLOR || red["500"],
+      main: config.errorColor || import.meta.env.VITE_ERROR_COLOR || red["500"],
     },
     background: {
       default: '#FFF',
-      paper: import.meta.env.VITE_PAPER_COLOR || blueGrey["50"],
+      paper: config.paperColor || import.meta.env.VITE_PAPER_COLOR || blueGrey["50"],
     },
     selected: {
-      main: '#0A001F',
+      main: config.selectedColor || import.meta.env.VITE_SELECTED_COLOR || '#0A001F',
     },
     selectedHover: {
-      main: '#2C2A4A',
+      main: config.selectedHoverColor || import.meta.env.VITE_SELECTED_HOVER_COLOR || '#2C2A4A',
     },
   },
   typography: {
-     // Customize fonts, sizes, etc.
+    // Customize fonts, sizes, etc.
   }
 });
-export default theme;
