@@ -28,4 +28,8 @@ const publicDirectory = path.join(__dirname, '../public');
  */
 router.use(express.static(publicDirectory));
 
+// And a fallback for React Router:
+router.get(/^[^.]*$/, (req, res) => {
+  res.sendFile(path.join(publicDirectory, 'index.html'));
+});
 export default router;
