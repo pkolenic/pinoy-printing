@@ -14,13 +14,12 @@ const quickLinks = ['About Us', 'Track Order'];
 const customerServiceLinks = ['Shipping Info', 'Returns & Exchanges', 'FAQ'];
 
 export const Footer = () => {
-
   const {
-    siteName: shopName = 'Sample0',
-    siteAddress: shopAddress = '123 Gift Street, Present City',
-    siteEmail: shopEmail = 'hello@example.com',
-    sitePhone: shopPhone = '(555) 123-SHOP',
-  } = useSiteConfig(['siteName', 'siteAddress', 'siteEmail', 'sitePhone']);
+    name: shopName,
+    address: shopAddress,
+    email: shopEmail,
+    phone: shopPhone,
+  } = useSiteConfig('site');
   const shopPhoneForTelephone = `tel:${shopPhone.replace(/[^\d+]/g, '')}`;
 
   return (
@@ -36,7 +35,7 @@ export const Footer = () => {
       <Container maxWidth="lg">
         <Grid container spacing={4} justifyContent="space-between">
           {/* Section 1: Company Info */}
-          <Grid size={{xs: 12, md: 4}}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <Box
               sx={{
                 display: 'flex',
@@ -44,23 +43,23 @@ export const Footer = () => {
                 alignItems: 'center',
                 flexWrap: 'wrap',
                 gap: 1
-            }}>
+              }}>
               <Box>
-                <Typography variant="body2" color="text.secondary" sx={{display: 'inline', mr: 2}}>
+                <Typography variant="body2" color="text.secondary" sx={{ display: 'inline', mr: 2 }}>
                   {shopAddress}
                 </Typography>
                 <Link
                   href={shopPhoneForTelephone}
                   color="text.secondary"
                   underline="hover"
-                  sx={{display: 'flex', alignItems: 'center', gap: 0.5}}
+                  sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
                 >
-                  <PhoneIcon sx={{fontSize: 16}}/>
+                  <PhoneIcon sx={{ fontSize: 16 }}/>
                   <Typography variant="body2" color="inherit">
                     {shopPhone}
                   </Typography>
                 </Link>
-                <Typography variant="body2" color="text.secondary" sx={{display: 'inline'}}>
+                <Typography variant="body2" color="text.secondary" sx={{ display: 'inline' }}>
                   {shopEmail}
                 </Typography>
               </Box>
@@ -68,13 +67,13 @@ export const Footer = () => {
           </Grid>
 
           {/* Section 2: Quick Links */}
-          <Grid size={{xs: 6, md: 2}}>
+          <Grid size={{ xs: 6, md: 2 }}>
             <Typography variant="subtitle1" gutterBottom>
               Quick Links
             </Typography>
-            <Box sx={{display: 'flex', flexDirection: 'column'}}>
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
               {quickLinks.map((link) => (
-                <Link href="#" variant="body2" color="text.secondary" key={link} sx={{mb: 0.5}}>
+                <Link href="#" variant="body2" color="text.secondary" key={link} sx={{ mb: 0.5 }}>
                   {link}
                 </Link>
               ))}
@@ -82,13 +81,13 @@ export const Footer = () => {
           </Grid>
 
           {/* Section 3: Customer Service */}
-          <Grid size={{xs: 6, md: 2}}>
+          <Grid size={{ xs: 6, md: 2 }}>
             <Typography variant="subtitle1" gutterBottom>
               Customer Service
             </Typography>
-            <Box sx={{display: 'flex', flexDirection: 'column'}}>
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
               {customerServiceLinks.map((link) => (
-                <Link href="#" variant="body2" color="text.secondary" key={link} sx={{mb: 0.5}}>
+                <Link href="#" variant="body2" color="text.secondary" key={link} sx={{ mb: 0.5 }}>
                   {link}
                 </Link>
               ))}
@@ -97,7 +96,7 @@ export const Footer = () => {
         </Grid>
 
         {/* Bottom Bar: Copyright and Contact Info */}
-        <Typography variant="body2" color="text.secondary" align="center" sx={{mt: 2}}>
+        <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 2 }}>
           {'© '}
           {new Date().getFullYear()}
           {` ${shopName}. All rights reserved.`}

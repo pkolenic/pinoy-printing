@@ -1,14 +1,14 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import type { SiteConfig } from "../models.ts";
+import type { ISiteConfig } from "../../types";
 
 export const siteApiSlice = createApi({
-  baseQuery: fetchBaseQuery({ baseUrl: '/site' }),
+  baseQuery: fetchBaseQuery({ baseUrl: '/site/config' }),
   reducerPath: 'siteApi',
   refetchOnFocus: false,
   refetchOnReconnect: false,
   tagTypes: ['Site'],
   endpoints: build => ({
-    getSiteConfig: build.query<SiteConfig, void>({
+    getSiteConfig: build.query<ISiteConfig, void>({
       query: () => {
         const searchParams = new URLSearchParams(window.location.search);
         const site = searchParams.get('SITE');

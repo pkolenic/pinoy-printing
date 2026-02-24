@@ -32,28 +32,3 @@ export type User = {
   role: "admin" | "customer" | "owner" | "staff";
   orders: Order[];
 }
-
-export type SiteConfig = {
-  auth0Domain: string;
-  auth0Audience: string;
-  auth0ClientId: string;
-
-  siteName: string;
-  siteAddress: string;
-  sitePhone: string;
-  siteEmail: string;
-  siteCurrency: string;
-
-  requireAuthentication: boolean;
-
-  primaryColor: string;
-  secondaryColor: string;
-  errorColor: string;
-  paperColor: string;
-  selectedColor: string;
-  selectedHoverColor: string;
-
-  heroTitle: string;
-  heroDescription: string;
-  heroImage: string;
-}

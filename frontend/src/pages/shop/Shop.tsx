@@ -19,7 +19,11 @@ export const Shop = () => {
 
   const selectedCategory = useAppSelector((state) => state.filter.selectedCategory);
 
-  const {heroTitle, heroDescription, heroImage } = useSiteConfig(['heroTitle', 'heroDescription', 'heroImage']);
+  const {
+    title: heroTitle,
+    description: heroDescription,
+    image: heroImage,
+  } = useSiteConfig('hero');
 
   return (
     <Fragment>

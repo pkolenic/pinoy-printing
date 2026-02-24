@@ -6,7 +6,11 @@ import { store } from "./app/store"
 import { Auth0Provider } from '@auth0/auth0-react';
 import { ThemeProvider } from '@mui/material/styles';
 import { getDynamicTheme } from "./app/theme";
-import type { SiteConfig } from "./features/models.ts";
+import {
+  IThemeColors,
+  IAuth0Settings,
+  ISiteConfig,
+} from "./types";
 import { isPrimaryDomain } from "./utils/domain.ts";
 
 import { siteFeature } from "./features/";
@@ -22,20 +26,24 @@ const AppBootstrap = () => {
 
   // Update the document title once siteConfig is loaded
   useEffect(() => {
-    if (siteConfig?.siteName) {
-      document.title = siteConfig.siteName;
+    if (siteConfig?.site?.name) {
+      document.title = siteConfig.site.name;
     }
   }, [siteConfig]);
 
   const { auth0Domain, auth0ClientId, auth0Audience, theme } = useMemo(() => {
-    // Use logical OR to provide an empty object if siteConfig is null/undefined
-    const currentConfig = siteConfig || ({} as SiteConfig);
+    const {
+      auth0 = {} as IAuth0Settings,
+      theme: configTheme = {} as IThemeColors
+    } = siteConfig || {} as ISiteConfig;
+
+    const themeValue = getDynamicTheme(configTheme);
 
     return {
-      auth0Domain: siteConfig?.auth0Domain || import.meta.env.VITE_AUTH0_DOMAIN,
-      auth0ClientId: siteConfig?.auth0ClientId || import.meta.env.VITE_AUTH0_CLIENT_ID,
-      auth0Audience: siteConfig?.auth0Audience || import.meta.env.VITE_AUTH0_AUDIENCE,
-      theme: getDynamicTheme(currentConfig),
+      auth0Domain: auth0.domain || import.meta.env.VITE_AUTH0_DOMAIN,
+      auth0ClientId: auth0.clientId || import.meta.env.VITE_AUTH0_CLIENT_ID,
+      auth0Audience: auth0.audience || import.meta.env.VITE_AUTH0_AUDIENCE,
+      theme: themeValue,
     };
   }, [siteConfig]);
 
@@ -67,7 +75,6 @@ const AppBootstrap = () => {
     </Auth0Provider>
   );
 };
-
 
 const container = document.getElementById("root")
 

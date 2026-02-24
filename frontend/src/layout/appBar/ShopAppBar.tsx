@@ -176,7 +176,7 @@ export const ShopAppBar = ({ children, onProfileClick }: Props) => {
                   ))}
                 </Menu>
                 <Typography variant="h6" sx={{ ml: 2, mr: 2 }}>
-                  { useSiteConfig('siteName', 'Sample0')}
+                  { useSiteConfig('site.name', 'Pinoy Shop')}
                 </Typography>
               </Box>
               <SearchBox sx={{ mt: { xs: 2, lg: 0 } }}/>

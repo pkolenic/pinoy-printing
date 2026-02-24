@@ -25,7 +25,7 @@ export function App() {
     loginWithRedirect
   } = useAuthSession();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const requireAuthentication = useSiteConfig('requireAuthentication', false);
+  const requireAuthentication = useSiteConfig('settings.requireAuthentication', false);
 
   useEffect(() => {
     if (requireAuthentication && !isLoading && !isAuthenticated) {
