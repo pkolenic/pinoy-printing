@@ -9,7 +9,7 @@ const internalJwtCheck = auth({
 });
 
 export const jwtCheck: RequestHandler = (req, res, next) => {
-  const isAuthRequired = getEnv(process.env.VITE_REQUIRE_AUTHENTICATION, false);
+  const isAuthRequired = getEnv(process.env.REQUIRE_AUTHENTICATION, false);
 
   internalJwtCheck(req, res, (err) => {
     // If no error, proceed
