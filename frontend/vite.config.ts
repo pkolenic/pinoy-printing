@@ -14,7 +14,12 @@ export default defineConfig({
       react(),
       basicSsl(),
     ],
-
+    build: {
+      // Output directly to the backend's public folder
+      outDir: '../backend/public',
+      // Empty the folder before building to remove old files
+      emptyOutDir: true,
+    },
     server: {
         // Allow local test domains
         allowedHosts: ['localhost', '.test'],
