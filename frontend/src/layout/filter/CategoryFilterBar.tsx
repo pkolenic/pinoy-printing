@@ -66,8 +66,10 @@ export const CategoryFilterBar = (props: Props) => {
                 textTransform: 'none',
                 ...(isSelected && {
                   backgroundColor: theme.palette.selected.main,
+                  color: theme.palette.getContrastText(theme.palette.selected.main),
                   '&:hover': {
                     backgroundColor: theme.palette.selectedHover.main,
+                    color: theme.palette.getContrastText(theme.palette.selectedHover.main),
                   },
                 }),
               }}
