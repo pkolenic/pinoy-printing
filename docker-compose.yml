@@ -2,8 +2,8 @@ services:
   redis:
     image: "redis:alpine"
     command: [ "redis-server", "--requirepass", "${DOCKER_REDIS_PASSWORD}" ]
-    #    ports:
-    #      - "6380:6379"
+    ports:
+      - "6380:6379"
     networks:
       - backend_net
 
@@ -30,32 +30,14 @@ services:
     networks:
       - backend_net
 
-  proxy:
-    image: caddy:latest
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - ./certs:/certs
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on: [ app ]
-    networks:
-      - backend_net
-
   cloudflared:
     image: cloudflare/cloudflared:latest
-    command: tunnel run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    command: tunnel --loglevel debug --proxy-connect-timeout 30s --proxy-tcp-keepalive 30s run --token ${CLOUDFLARE_TUNNEL_TOKEN}
     restart: unless-stopped
-    depends_on: [ proxy ]
+    depends_on: [ app ]
     networks:
       - backend_net
 
 networks:
   backend_net:
     driver: bridge
-
-volumes:
-  caddy_data:
-  caddy_config:

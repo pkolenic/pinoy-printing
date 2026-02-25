@@ -32,15 +32,16 @@ try {
 
 // CREATE EXPRESS SERVER
 const app: Application = express();
+app.set('trust proxy', true);
 
+let HOST: string = '0.0.0.0';
 // Trust Proxy settings
 if (process.env.NODE_ENV === 'development') {
   // In dev, trust the Vite proxy so req.hostname works
-  app.set('trust proxy', true);
+  HOST = '127.0.0.1';
 } else {
   // In production, trust only your real reverse proxy (e.g., Nginx, Cloudflare, ELB)
   // '1' means trust the first hop (the proxy directly in front of Node)
-  app.set('trust proxy', 1);
 }
 
 // MIDDLEWARE
@@ -56,12 +57,14 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // START SERVER
-const server: Server = app.listen(PORT, (): void => {
+const server: Server = app.listen(PORT, HOST, (): void => {
   systemLogger.info({
-    message: `Server is running on port ${PORT}`,
+    message: `Server is running on port ${HOST}:${PORT}`,
     color: systemLogger.colors.SUCCESS,
   });
 });
+server.keepAliveTimeout = 61000;
+server.headersTimeout = 62000;
 
 // Graceful shutdown
 let shuttingDown = false;
