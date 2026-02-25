@@ -1,13 +1,11 @@
-import express, { RequestHandler, Router } from 'express';
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import express, { Router } from 'express';
+import { PUBLIC_DIR } from './config/paths.js';
 import apiRoutes from './routes/api.js';
 import siteRoutes from './routes/site.js';
-import net from "net";
-import { SiteConfiguration } from "./models/index.js";
-import { AppError } from "./utils/errors/index.js";
-import { StatusCodes } from "http-status-codes";
+import {
+  getIndex,
+  getFavicon,
+} from "./controllers/static.js";
 
 const router: Router = Router();
 
@@ -15,21 +13,18 @@ const router: Router = Router();
 router.use('/api', apiRoutes);
 router.use('/site', siteRoutes);
 
-// GET current path
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Create an absolute path: <project-root>/public
-const publicDirectory = path.join(__dirname, '../public');
-
 /**
  * Static Folder Middleware
  * Serves files like images, CSS, or JS from the public directory.
  */
-router.use(express.static(publicDirectory));
+router.use(express.static(PUBLIC_DIR, { index: false }));
+
+// Silently 404 well-known files without triggering the fallback or error logger
+router.get('/.well-known/*path', (_req, res) => res.status(404).end());
+
+// GET favicon.ico and other static thumbnail images
+router.get(['/favicon.ico', '/apple-touch-icon.png', 'apple-touch-icon-precomposed.png'], getFavicon);
 
 // And a fallback for React Router:
-router.get(/^[^.]*$/, (req, res) => {
-  res.sendFile(path.join(publicDirectory, 'index.html'));
-});
+router.get('*path', getIndex);
 export default router;

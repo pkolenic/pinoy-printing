@@ -1,7 +1,7 @@
 import { RequestHandler } from 'express';
 import { logger } from '../utils/logging/index.js';
 
-export const loggerMiddleware: RequestHandler = (req, res, next) => {
+export const loggerMiddleware: RequestHandler = (req, _res, next) => {
   const method = req.method;
   const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
 

@@ -1,19 +1,8 @@
-import { Request, RequestHandler } from "express";
+import { RequestHandler } from "express";
 import { SiteConfiguration } from "../models/index.js";
 import { AppError } from "../utils/errors/index.js";
 import { StatusCodes } from "http-status-codes";
-
-const getTargetHostname = (req: Request): string => {
-  // Check for the override first (useful for Dev and potentially QA/Preview environments)
-  const siteOverride = req.query.SITE as string;
-
-  if (process.env.NODE_ENV === 'development' && siteOverride) {
-    return siteOverride;
-  }
-
-  // Fallback to standard hostname
-  return req.hostname;
-};
+import { getTargetHostname } from "../utils/system.js";
 
 export const getSiteConfiguration: RequestHandler = async (req, res, next) => {
   try {

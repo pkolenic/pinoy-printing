@@ -1,3 +1,5 @@
+import { Request } from "express";
+
 /**
  * Gets a process.env value and casts it to the desired type.
  * Supports: 'string' | 'number' | 'boolean'
@@ -21,4 +23,16 @@ export const getEnv = <T extends string | number | boolean>(
 
   // Fallback to string
   return value as unknown as T;
+};
+
+export const getTargetHostname = (req: Request): string => {
+  // Check for the override first (useful for Dev and potentially QA/Preview environments)
+  const siteOverride = req.query.SITE as string;
+
+  if (process.env.NODE_ENV === 'development' && siteOverride) {
+    return siteOverride;
+  }
+
+  // Fallback to standard hostname
+  return req.hostname;
 };
