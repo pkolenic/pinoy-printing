@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Model, Types } from "mongoose";
+import { Schema, Document, Types } from "mongoose";
 
 /**
  * Define the Interface for the CustomerProduct.
@@ -28,5 +28,3 @@ export const CustomerProductSchema = new Schema<ICustomerProductDocument>({
     customer: { type: Schema.Types.ObjectId, ref: 'User', required: true},
     price: {type: Number, required: true},
 });
-
-export const CustomerProduct: Model<ICustomerProductDocument> = mongoose.models.CustomerProduct || mongoose.model<ICustomerProductDocument>('CustomerProduct', CustomerProductSchema);

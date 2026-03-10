@@ -9,10 +9,8 @@ import csv from 'csv-parser';
 import { AppError } from '../utils/errors/index.js';
 
 import {
-  Category,
   ICategory,
   ICategoryDocument,
-  Product,
   IProduct,
   CSV_PRODUCT_HEADERS,
   getRelatedCategoryIds,
@@ -100,7 +98,7 @@ export const createProduct: RequestHandler = async (req, res, next) => {
     // TODO -- Trigger image processing service
 
     // Create Image
-    const newProduct = new Product({
+    const newProduct = new req.tenantModels.Product({
       ...data,
       details: data.details || data.description,
       categories: [category],
@@ -150,7 +148,7 @@ export const getProducts: RequestHandler = async (req, res, next) => {
     const { search, category, minPrice, maxPrice, maxInventory, sortBy } = req.query as queryType
 
     if (category) {
-      const categoryIds = await getRelatedCategoryIds(category.toLowerCase());
+      const categoryIds = await getRelatedCategoryIds(req.tenantModels.Category, category.toLowerCase());
       if (categoryIds.length === 0) {
         // If slug provided but category doesn't exist, return empty early'
         return res.status(200).json(paginateResponse(req, [], 0, page, limit));
@@ -173,8 +171,8 @@ export const getProducts: RequestHandler = async (req, res, next) => {
     const sort = buildSort(sortBy, allowedSort);
 
     const [count, products] = await Promise.all([
-      Product.countDocuments(query),
-      Product.find(query)
+      req.tenantModels.Product.countDocuments(query),
+      req.tenantModels.Product.find(query)
         .sort(sort)
         .skip(skip)
         .limit(limit)
@@ -309,7 +307,7 @@ export const importProducts: RequestHandler = async (req, res, next) => {
               categories: row.category?.trim() ? [row.category.trim()] : [],
             };
 
-            const existingProduct = await Product.findOne({ sku });
+            const existingProduct = await req.tenantModels.Product.findOne({ sku });
 
             // 2. Logic Check: Handle Duplicate SKU
             if (existingProduct && !allowUpdate) {
@@ -319,11 +317,11 @@ export const importProducts: RequestHandler = async (req, res, next) => {
               // CATEGORY SYNC: Simulate pre-save middleware logic for the diff
               if (productData.categories.length > 0) {
                 const leafId = productData.categories[0];
-                const leafCategory = await Category.findById(leafId).lean<ICategory>();
+                const leafCategory = await req.tenantModels.Category.findById(leafId).lean<ICategory>();
 
                 if (leafCategory && leafCategory.path) {
                   const slugs = leafCategory.path.split('/');
-                  const ancestorDocs = await Category.find({
+                  const ancestorDocs = await req.tenantModels.Category.find({
                     slug: { $in: slugs }
                   }).select('_id').lean<ICategoryDocument[]>();
 
@@ -357,7 +355,7 @@ export const importProducts: RequestHandler = async (req, res, next) => {
                 }
               } else {
                 status = 'created';
-                const newProduct = new Product(productData);
+                const newProduct = new req.tenantModels.Product(productData);
 
                 if (isPreview) {
                   await newProduct.validate();

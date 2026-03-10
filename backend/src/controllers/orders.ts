@@ -1,7 +1,6 @@
 import { RequestHandler } from "express";
 
 import {
-  Order,
   IOrderDocument,
   AddressSubdocument,
 } from "../models/index.js";
@@ -44,7 +43,7 @@ export const createOrder: RequestHandler = async (req, res, next) => {
     delete (shippingAddress as any).isPrimary;
 
     // 3. Create the Order
-    const newOrder: IOrderDocument = new Order({
+    const newOrder: IOrderDocument = new req.tenantModels.Order({
       customer: user._id,
       address: shippingAddress,
       items: req.body.items || []

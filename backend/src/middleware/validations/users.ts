@@ -1,4 +1,4 @@
-import { body, ValidationChain } from 'express-validator';
+import { body } from 'express-validator';
 import { withValidation } from "./common.js";
 
 // Shared Base Rules
@@ -49,3 +49,4 @@ export const updateUserRules = withValidation([
 export const updatePasswordRules = withValidation([
   passwordBase,
 ]);
+

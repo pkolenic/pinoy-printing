@@ -1,4 +1,5 @@
 import { Request } from "express";
+import slugify from '@sindresorhus/slugify';
 
 /**
  * Gets a process.env value and casts it to the desired type.
@@ -8,7 +9,9 @@ export const getEnv = <T extends string | number | boolean>(
   value: string | undefined,
   defaultValue: T
 ): T => {
-  if (value === undefined || value === "") return defaultValue;
+  if (value === undefined || value === "") {
+    return defaultValue;
+  }
 
   // Infer boolean
   if (typeof defaultValue === 'boolean') {
@@ -36,3 +39,8 @@ export const getTargetHostname = (req: Request): string => {
   // Fallback to standard hostname
   return req.hostname;
 };
+
+export const getTenantId = (req: Request): string => {
+  const hostname = getTargetHostname(req);
+  return slugify(hostname, {separator: '_'});
+}

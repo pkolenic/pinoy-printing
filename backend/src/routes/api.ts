@@ -3,7 +3,6 @@ import {
   Request,
   Response,
 } from 'express';
-import { jwtCheck } from "../middleware/index.js";
 import categoryRoutes from "./categories.js";
 import orderRoutes from "./orders.js";
 import productRoutes from "./products.js";
@@ -11,12 +10,6 @@ import userRoutes from "./users.js";
 
 // Define a Router instance
 const router: Router = Router();
-
-/**
- * Global API Middleware
- * Protects all routes mounted below this line with JWT verification when required.
- */
-router.use(jwtCheck);
 
 /**
  * Root API Route (for Testing)

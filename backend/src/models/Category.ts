@@ -106,13 +106,12 @@ CategorySchema.post<ICategoryDocument>('save', async function (doc) {
   }
 });
 
-export const Category = mongoose.models.Category || mongoose.model<ICategory, CategoryModel>('Category', CategorySchema);
-
 /**
  * Utility function to find all related category IDs for a given slug.
+ * @param Category
  * @param categorySlug
  */
-export async function getRelatedCategoryIds(categorySlug: string): Promise<string[]> {
+export async function getRelatedCategoryIds(Category: Model<ICategory>, categorySlug: string): Promise<string[]> {
   // 1. Find the target parent category (e.g., 'shirts')
   const parentCategory = await Category.findOne({ slug: categorySlug });
 

@@ -1,27 +1,28 @@
 import { RequestHandler } from 'express';
-import { Model, Document } from 'mongoose';
 import { StatusCodes } from 'http-status-codes';
 
 import { AppError } from '../utils/errors/index.js';
 import { AddressSubdocument } from '../models/index.js';
+import { TenantModels } from '../types/tenantContext.js';
 
 /**
  * Factory function to create a middleware that fetches a document by ID.
  * Uses Generics <T> to maintain the type of the Mongoose Document.
  */
-export const createAttachMiddleware = <T extends Document>(
-  model: Model<T>,
+export const createAttachMiddleware = <K extends keyof TenantModels>(
+  modelName: K,
   paramName: string,
   reqPropertyName: string
 ): RequestHandler => {
-  return async (req, res, next) => {
+  return async (req, _res, next) => {
     const itemId: string = req.params[paramName];
+    const model = req.tenantModels[modelName];
 
     try {
       const item = await model.findById(itemId).exec();
 
       if (!item) {
-        return next(new AppError(`${model.modelName} not found`, StatusCodes.NO_CONTENT));
+        return next(new AppError(`${String(modelName)} not found`, StatusCodes.NO_CONTENT));
       }
 
       // Attach the document to the request object

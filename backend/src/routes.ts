@@ -2,12 +2,16 @@ import express, { Router } from 'express';
 import { PUBLIC_DIR } from './config/paths.js';
 import apiRoutes from './routes/api.js';
 import siteRoutes from './routes/site.js';
+import { configurationMiddleware } from './middleware/index.js';
 import {
   getIndex,
   getFavicon,
 } from "./controllers/static.js";
 
 const router: Router = Router();
+
+// Site Configuration Middleware
+router.use(configurationMiddleware);
 
 // Mount sub-routers
 router.use('/api', apiRoutes);

@@ -1,4 +1,5 @@
 import { ManagementClient } from 'auth0';
+import { StatusCodes } from "http-status-codes";
 import { AppError } from '../utils/errors/index.js';
 
 /**
@@ -9,7 +10,7 @@ export type UserRole = 'admin' | 'customer' | 'owner' | 'staff';
 /**
  * Map roles to Auth0 Role IDs from environment variables
  */
-const USER_ROLE_IDS: Record<UserRole, string | undefined> = {
+export const USER_ROLE_IDS: Record<UserRole, string | undefined> = {
   admin: process.env.AUTH0_ADMIN_ROLE_ID,
   customer: process.env.AUTH0_CUSTOMER_ROLE_ID,
   owner: process.env.AUTH0_OWNER_ROLE_ID,
@@ -19,29 +20,60 @@ const USER_ROLE_IDS: Record<UserRole, string | undefined> = {
 // Singleton instance of the Auth0 Management Client
 let clientInstance: ManagementClient | null = null;
 
+// Cache for tenant-specific Auth0 clients
+const clientCache = new Map<string, ManagementClient>();
+
 /**
- * Factory for Auth0 Management Client (v5+ standard)
+ * Returns a cached or new Auth0 Management Client for a specific tenant.
  */
-export function getManagementClient(): ManagementClient {
-  if (!clientInstance) {
-    const domain = process.env.AUTH0_ISSUER_DOMAIN;
-    const clientId = process.env.AUTH0_MANAGEMENT_CLIENT_ID;
-    const clientSecret = process.env.AUTH0_MANAGEMENT_CLIENT_SECRET;
+export function getManagementClient(
+  tenantId: string,
+  config: {
+    issuerDomain: string;
+    managementClientId: string;
+    managementClientSecret: string;
+    [key: string]: any; // Allows the other extra properties
+  }
+): ManagementClient {
+  // Check if the client for this tenant already exists
+  if (clientCache.has(tenantId)) {
+    return clientCache.get(tenantId)!;
+  }
 
-    if (!domain || !clientId || !clientSecret) {
-      throw new AppError('Auth0 Management API configuration is missing in environment variables', 500);
-    }
+  const {
+    issuerDomain: domain,
+    managementClientId: clientId,
+    managementClientSecret: clientSecret
+  } = config;
 
-    clientInstance = new ManagementClient({
+  // Validation - Ensure all required credentials are provided
+  if (!domain || !clientId || !clientSecret) {
+    throw new AppError(`Auth0 credentials missing for tenant: ${tenantId}`, StatusCodes.INTERNAL_SERVER_ERROR);
+  }
+
+  try {
+    // Initialize the new client
+    const client = new ManagementClient({
       domain,
       clientId,
       clientSecret,
-      // In v5, the SDK internally manages the Machine-to-Machine (M2M) token
-      // ensuring the audience matches the Auth0 tenant's Management API identifier
+      // Ensure the audience points to the specific tenant's API
       audience: `https://${domain}/api/v2/`,
-    })
+    });
+
+    // 4. Cache and return
+    clientCache.set(tenantId, client);
+    return client;
+  } catch (error) {
+    throw new AppError(`Failed to initialize Auth0 client for tenant ${tenantId}`, StatusCodes.INTERNAL_SERVER_ERROR);
   }
-  return clientInstance;
+}
+
+/**
+ * Utility to clear the cache (useful for testing or credential rotation)
+ */
+export async function clearAuth0Cache(): Promise<void> {
+  clientCache.clear();
 }
 
 /**

@@ -4,11 +4,6 @@ import {
   createOrder,
 } from '../controllers/orders.js';
 
-import {
-  Order,
-  User
-} from '../models/index.js';
-
 //Define allowed permission strings
 type OrderPermission =
   | 'read:orders'
@@ -18,7 +13,7 @@ type OrderPermission =
   | 'self'; // Placeholder for self-only logic
 
 // ROUTE GUARDS
-const { guard, guardedResource, guardedMultiResource } = createRouteGuards<OrderPermission>(User, 'userId', 'user');
+const { guard, guardedResource, guardedMultiResource } = createRouteGuards<OrderPermission, 'User'>('User', 'userId', 'user');
 
 // Define a Router instance
 export const router = Router();
@@ -33,19 +28,19 @@ router.route('/:userId')
 const orderRouter = Router({ mergeParams: true });
 orderRouter.route('/:orderId')
   .get(guardedMultiResource('read:orders', [
-      { model: User, param: 'userId', key: 'user' },
-      { model: Order, param: 'orderId', key: 'order' }
+      { modelName: 'User', param: 'userId', key: 'user' },
+      { modelName: 'Order', param: 'orderId', key: 'order' }
     ], [/* no validation rules */], true),
     /* getOrder */
   )
   .delete(guardedMultiResource('delete:orders', [
-      { model: User, param: 'userId', key: 'user' },
-      { model: Order, param: 'orderId', key: 'order' }
+      { modelName: 'User', param: 'userId', key: 'user' },
+      { modelName: 'Order', param: 'orderId', key: 'order' }
     ], [/* no validation rules */]),
     /* deleteOrder */)
   .put(guardedMultiResource('update:orders', [
-      { model: User, param: 'userId', key: 'user' },
-      { model: Order, param: 'orderId', key: 'order' }
+      { modelName: 'User', param: 'userId', key: 'user' },
+      { modelName: 'Order', param: 'orderId', key: 'order' }
     ], [/* TODO updateOrderRules */], true),
     /* updateOrder */)
 

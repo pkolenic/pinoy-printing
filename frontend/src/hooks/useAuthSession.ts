@@ -1,80 +1,95 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth0 } from '@auth0/auth0-react';
 import { skipToken } from "@reduxjs/toolkit/query/react";
-import { SerializedError } from "@reduxjs/toolkit";
-import { FetchBaseQueryError } from "@reduxjs/toolkit/query";
 import { useAppDispatch, useAppSelector } from './index.ts'
 import { authFeature, userFeature } from "../features";
+import { User, DEFAULT_USER } from "../features/models.ts";
+import { getTenantId } from "../utils/domain.ts";
 
-export const useAuthSession = () => {
+export const useAuthSession = (requireAuth: boolean = false) => {
   const {
     isAuthenticated,
-    isLoading,
-    error,
+    isLoading: auth0Loading,
     user: auth0User,
-    getAccessTokenSilently,
     loginWithRedirect,
-    logout
+    logout,
+    getAccessTokenSilently,
   } = useAuth0();
+
   const dispatch = useAppDispatch();
   const token = useAppSelector((state) => state.auth.token);
-
-  // Add a simple state to track logout status
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+  // 1. Unified Logout Handler
   const handleLogout = useCallback(() => {
     setIsLoggingOut(true);
+    // Clear the Redux state immediately
+    dispatch(authFeature.clearToken());
     logout({ logoutParams: { returnTo: window.location.origin } });
-  }, [logout]);
+  }, [logout, dispatch]);
 
+  // 2. Sync Token
   useEffect(() => {
+    // If we are logged into Auth0 but don't have a Redux token yet, get it.
     if (isAuthenticated && !token && !isLoggingOut) {
       getAccessTokenSilently()
         .then(t => dispatch(authFeature.setToken(t)))
-        .catch(err => {
-          // Specifically, check for the 'missing_refresh_token' error
-          if (err.error === 'missing_refresh_token' || err.message?.includes('Missing Refresh Token')) {
-            console.warn("Silent token acquisition skipped: Session already ended.");
-            return; // Exit silently without triggering handleLogout
+        .catch(() => {
+          if (requireAuth) {
+            handleLogout();
+          } else {
+            dispatch(authFeature.clearToken());
           }
-
-          // Handle other legitimate failures
-          console.error("Token acquisition failed, logging out:", err);
-          handleLogout();
         });
     }
-  }, [isAuthenticated, token, dispatch, getAccessTokenSilently, isLoggingOut, handleLogout]);
+  }, [isAuthenticated, token, getAccessTokenSilently, isLoggingOut, dispatch, handleLogout, requireAuth]);
 
+  // 3. Fetch Backend Profile
+  const userId = auth0User?.account?.id;
   const profile = userFeature.useGetUserQuery(
-    (isAuthenticated && token && auth0User?.account?.id) ? auth0User.account.id : skipToken
+    (isAuthenticated && userId && token) ? userId : skipToken
   );
 
-  const isSessionActive = useMemo(() =>
-      !!(isAuthenticated && token && profile.data),
-    [isAuthenticated, token, profile.data]
-  );
-  const isFullyLoaded = isAuthenticated ? isSessionActive : !isLoading;
+  // 4. Derive Loading & Active States
 
-  const getErrorMessage = (err: FetchBaseQueryError | SerializedError | Error | undefined): string => {
-    if (!err) return "";
-    if ('status' in err) return JSON.stringify(err.data); // FetchBaseQueryError
-    if ('message' in err) return err.message || "An unknown error occurred"; // SerializedError or Error
-    return "An unknown error occurred";
-  };
+  // Active means we have the full set of data
+  const isSessionActive = !!(isAuthenticated && token && profile.data);
+
+  // We are "Busy" if we are authenticated but haven't finished the data chain yet.
+  const isBusy = auth0Loading || isLoggingOut || (isAuthenticated && (!token || profile.isLoading));
+
+  // 5. Redirect Logic
+  useEffect(() => {
+    // Only redirect if Auth0 has finished its initial check and we aren't already handling a code
+    const isHandlingCallback = window.location.search.includes("code=");
+
+    if (!auth0Loading && requireAuth && !isAuthenticated && !isHandlingCallback && !isLoggingOut) {
+      loginWithRedirect({
+        authorizationParams: { 'ext-tenant_id': getTenantId() }
+      });
+    }
+  }, [auth0Loading, requireAuth, isAuthenticated, loginWithRedirect, isLoggingOut]);
+
+  // 6. Logout on Missing Profile (Strictly for requireAuth mode)
+  useEffect(() => {
+    if (requireAuth && profile.isSuccess && !profile.data && !isLoggingOut) {
+      handleLogout();
+    }
+  }, [requireAuth, profile.isSuccess, profile.data, isLoggingOut, handleLogout]);
+
+  // Sync Profile Data with default data
+  const userProfile: User = useMemo(() => ({
+    ...DEFAULT_USER,
+    ...profile.data
+  }), [profile.data]);
 
   return {
+    isLoading: isBusy,
     isAuthenticated,
     isSessionActive,
     handleLogout,
     loginWithRedirect,
-    isLoading: !isFullyLoaded || profile.isLoading || isLoading || isLoggingOut,
-    errorMessage: getErrorMessage(error),
-    userProfile: profile.data,
-    token,
+    userProfile,
+    token
   };
 };

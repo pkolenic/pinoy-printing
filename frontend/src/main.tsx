@@ -11,7 +11,7 @@ import {
   IAuth0Settings,
   ISiteConfig,
 } from "./types";
-import { isPrimaryDomain } from "./utils/domain.ts";
+import { isPrimaryDomain, getTenantId } from "./utils/domain.ts";
 
 import { siteFeature } from "./features/";
 
@@ -31,7 +31,7 @@ const AppBootstrap = () => {
     }
   }, [siteConfig]);
 
-  const { auth0Domain, auth0ClientId, auth0Audience, theme } = useMemo(() => {
+  const { auth0Domain, auth0ClientId, auth0Audience, auth0Connection, theme } = useMemo(() => {
     const {
       auth0 = {} as IAuth0Settings,
       theme: configTheme = {} as IThemeColors
@@ -43,6 +43,7 @@ const AppBootstrap = () => {
       auth0Domain: auth0.domain || import.meta.env.VITE_AUTH0_DOMAIN,
       auth0ClientId: auth0.clientId || import.meta.env.VITE_AUTH0_CLIENT_ID,
       auth0Audience: auth0.audience || import.meta.env.VITE_AUTH0_AUDIENCE,
+      auth0Connection: auth0.connection || import.meta.env.VITE_AUTH0_CONNECTION,
       theme: themeValue,
     };
   }, [siteConfig]);
@@ -56,17 +57,29 @@ const AppBootstrap = () => {
     return <div>Site Failed to Load</div>;
   }
 
+  const onRedirectCallback = (appState: any) => {
+    window.history.replaceState(
+      {},
+      document.title,
+      appState?.returnTo || window.location.pathname
+    );
+  };
+
   // Render Auth0Provider only after siteConfig is available
   return (
     <Auth0Provider
+      key={`${auth0Domain}-${auth0ClientId}`}
       domain={auth0Domain}
       clientId={auth0ClientId}
+      onRedirectCallback={onRedirectCallback}
       useRefreshTokens={true} // Enables silent token renewal
       cacheLocation="localstorage" // Persists tokens across refreshes
       authorizationParams={{
         redirect_uri: window.location.origin,
         audience: auth0Audience,
         scope: "openid profile email offline_access", // Required for refresh tokens
+        "ext-tenant_id": getTenantId(),
+        connection: auth0Connection,
       }}
     >
       <ThemeProvider theme={theme}>

@@ -16,8 +16,6 @@ import {
   importProductRules,
 } from "../middleware/index.js";
 
-import { Product } from "../models/index.js";
-
 type ProductPermission =
   | 'read:products'
   | 'create:products'
@@ -26,7 +24,7 @@ type ProductPermission =
   | '';
 
 // ROUTE GUARDS
-const { guard, guardedResource } = createRouteGuards<ProductPermission>(Product, 'productId', 'product');
+const { guard, guardedResource } = createRouteGuards<ProductPermission, 'Product'>('Product', 'productId', 'product');
 
 // Define a Router instance
 export const router = Router();
@@ -36,7 +34,7 @@ const upload = multer({ dest: 'uploads/' });
 
 // ROUTES
 router.get('/import/template', guard('create:products'), getImportTemplate);
-router.get('/', getProducts);
+router.get('/', guard(''), getProducts);
 router.post('/', guard('create:products'), createProductRules, createProduct)
 router.post(
   '/import',

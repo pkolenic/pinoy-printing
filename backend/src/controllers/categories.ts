@@ -10,8 +10,6 @@ import redis from '../services/redis.js';
 import { AppError } from '../utils/errors/index.js';
 
 import {
-  Category,
-  Product,
   ICategory,
   ICategoryTree,
   ICategoryDocument,
@@ -19,6 +17,7 @@ import {
 } from '../models/index.js';
 
 import { paginateResponse } from "../utils/paginationHelper.js";
+import { getTenantId } from "../utils/system.js";
 
 const CATEGORY_TREE_CACHE_KEY = 'category_tree';
 const CATEGORY_CACHE_TTL = 3600;
@@ -32,11 +31,11 @@ export const createCategory: RequestHandler = async (req, res, next) => {
   try {
     const { name, parent } = req.body;
 
-    const newCategory = new Category({ name, parent }) as ICategoryDocument;
+    const newCategory = new req.tenantModels.Category({ name, parent }) as ICategoryDocument;
     await newCategory.save();
 
     // Invalidate the cache after a database change
-    await redis.del(CATEGORY_TREE_CACHE_KEY);
+    await redis.del(`${CATEGORY_TREE_CACHE_KEY}::${getTenantId(req)}`);
 
     res.status(StatusCodes.CREATED).json(newCategory);
   } catch (error) {
@@ -67,8 +66,8 @@ export const getCategories: RequestHandler = async (req, res, next) => {
     const sort: { [key: string]: SortOrder } = { [sortField]: sortOrder };
 
     const [categoryCount, categories] = await Promise.all([
-      Category.countDocuments(query),
-      Category.find(query)
+      req.tenantModels.Category.countDocuments(query),
+      req.tenantModels.Category.find(query)
         .sort(sort)
         .skip((page - 1) * limit)
         .limit(limit)
@@ -87,10 +86,10 @@ export const getCategories: RequestHandler = async (req, res, next) => {
  * @route GET /api/categories/tree
  * @permission read:categories
  */
-export const getCategoryTree: RequestHandler = async (_req, res, next) => {
+export const getCategoryTree: RequestHandler = async (req, res, next) => {
   try {
     // 1. Check Redis Cache
-    const cachedTree = await redis.getJSON<ICategoryTree[]>(CATEGORY_TREE_CACHE_KEY);
+    const cachedTree = await req.tenantRedis.getJSON<ICategoryTree[]>(CATEGORY_TREE_CACHE_KEY);
     if (cachedTree) {
       return res.status(StatusCodes.OK).json(cachedTree);
     }
@@ -98,7 +97,7 @@ export const getCategoryTree: RequestHandler = async (_req, res, next) => {
     // 2. Fetch Flat list from DB
     // Use .lean() to get plain JS objects (ICategory[])
     type LeanCategory = ICategory & { _id: Types.ObjectId };
-    const categories = await Category.find()
+    const categories = await req.tenantModels.Category.find()
       .select("-createdAt -updatedAt -__v")
       .lean<LeanCategory[]>();
 
@@ -132,7 +131,7 @@ export const getCategoryTree: RequestHandler = async (_req, res, next) => {
     });
 
     // 4. Save to Redis (Cache for 1 hour or until invalidated)
-    await redis.setJSON(CATEGORY_TREE_CACHE_KEY, tree, CATEGORY_CACHE_TTL);
+    await req.tenantRedis.setJSON(CATEGORY_TREE_CACHE_KEY, tree, CATEGORY_CACHE_TTL);
 
     res.status(StatusCodes.OK).json(tree);
   } catch (error) {
@@ -173,7 +172,7 @@ export const deleteCategory: RequestHandler = async (req, res, next) => {
     }
 
     // 2. Handle Orphaned Children: Find all direct children of the category being deleted
-    const directChildren = await Category.find({ parent: categoryToDelete._id });
+    const directChildren = await req.tenantModels.Category.find({ parent: categoryToDelete._id });
 
     // Find the parent's ID of the category we're deleting (can be null if it's a root category)
     const newParentId = categoryToDelete.parent;
@@ -192,7 +191,7 @@ export const deleteCategory: RequestHandler = async (req, res, next) => {
     }
 
     // 3. Handle Related Products: Remove the deleted category from any products' category arrays
-    await Product.updateMany(
+    await req.tenantModels.Product.updateMany(
       { categories: categoryToDelete._id },
       { $pull: { categories: categoryToDelete._id } }
     );
@@ -243,7 +242,7 @@ export const updateCategory: RequestHandler = async (req, res, next) => {
           return next(new AppError('Invalid parent ID format', StatusCodes.BAD_REQUEST));
         }
 
-        const potentialParent = await Category.findById(parent);
+        const potentialParent = await req.tenantModels.Category.findById(parent);
         if (potentialParent && potentialParent.path.startsWith(`${category.path}/`)) {
           return next(new AppError('A category cannot have its own descendant as a parent', StatusCodes.BAD_REQUEST));
         }
@@ -265,10 +264,10 @@ export const updateCategory: RequestHandler = async (req, res, next) => {
     // If the hierarchy changed, we must update all Products that use this category or its descendants
     if (isHierarchyChanging) {
       // Find all categories affected (the category itself + all descendants)
-      const affectedCategoryIds = await getRelatedCategoryIds(category.slug);
+      const affectedCategoryIds = await getRelatedCategoryIds(req.tenantModels.Category, category.slug);
 
       // Find all products that contain any of these categories
-      const productsToUpdate = await Product.find({
+      const productsToUpdate = await req.tenantModels.Product.find({
         categories: { $in: affectedCategoryIds }
       });
 

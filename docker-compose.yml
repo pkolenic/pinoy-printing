@@ -11,20 +11,24 @@ services:
     image: "node:22"
     user: "node"
     working_dir: /home/node/app
+    ports:
+      - "3001:3001"
+      - "9229:9229"
     env_file:
       - .env
     environment:
       - NODE_ENV=production
       - PORT=3001
-      - SITE_REDIS_URI=redis://:${DOCKER_REDIS_PASSWORD}@redis:6379/0
-      - REDIS_URI=redis://:${DOCKER_REDIS_PASSWORD}@redis:6379/1
+      - TENANT_REDIS_URI=redis://:${DOCKER_REDIS_PASSWORD}@redis:6379/1
+      - REDIS_URI=redis://:${DOCKER_REDIS_PASSWORD}@redis:6379/0
       # Add your Auth0 variables here or in a .env file
     volumes:
       - ./:/home/node/app
     expose:
       - "3001"
     # Command to run your root package.json start script
-    command: [ "npm", "start", "--prefix", "backend" ]
+    # command: [ "npm", "start", "--prefix", "backend" ]
+    command: [ "node", "--inspect=0.0.0.0:9229", "backend/dist/server.js" ]
     depends_on:
       - redis
     networks:

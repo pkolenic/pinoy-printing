@@ -128,5 +128,3 @@ ProductSchema.pre<IProductDocument>('save', async function (next) {
   }
   next();
 });
-
-export const Product = mongoose.models.Product || mongoose.model<IProduct, ProductModel>('Product', ProductSchema);

@@ -32,3 +32,16 @@ export type User = {
   role: "admin" | "customer" | "owner" | "staff";
   orders: Order[];
 }
+
+export const DEFAULT_USER: User = {
+  id: "",
+  name: "User",
+  username: "",
+  sub: "",
+  email: "",
+  phone: "",
+  picture: "/images/avatar/default.png",
+  role: "customer",
+  addresses: [],
+  orders: [],
+};
