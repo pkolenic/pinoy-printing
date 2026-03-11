@@ -13,6 +13,7 @@ import { AppError } from '../utils/errors/index.js';
  */
 export const createOrder: RequestHandler = async (req, res, next) => {
   try {
+    const { Order } = req.tenantModels;
     const { user } = req;
 
     if (!user) {
@@ -43,7 +44,7 @@ export const createOrder: RequestHandler = async (req, res, next) => {
     delete (shippingAddress as any).isPrimary;
 
     // 3. Create the Order
-    const newOrder: IOrderDocument = new req.tenantModels.Order({
+    const newOrder: IOrderDocument = new Order({
       customer: user._id,
       address: shippingAddress,
       items: req.body.items || []

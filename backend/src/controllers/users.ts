@@ -52,6 +52,7 @@ export const createUser: RequestHandler = async (req, res, next) => {
   }
 
   try {
+    const { User } = req.tenantModels;
     const management = getManagementClient(getTenantId(req), req.tenantConfig.backend.auth0);
     // 3. Create an Auth0 user
     const auth0User = await management.users.create(userData);
@@ -65,7 +66,7 @@ export const createUser: RequestHandler = async (req, res, next) => {
 
     // 5. Create and Save MongoDB user
     // We explicitly type newUser as a Document of IUser
-    const newUser = new req.tenantModels.User({
+    const newUser = new User({
       name: auth0User.name,
       username: auth0User.username,
       email: auth0User.email,
@@ -111,7 +112,7 @@ export const syncUser: RequestHandler = async (req, res, next) => {
     return next(new AppError('Unauthorized', StatusCodes.UNAUTHORIZED));
   }
 
-  // Pull the siteConfiguration for the tenant
+  // Pull the siteConfiguration for the tenant - since the request is coming from Auth0 and not the tenant
   const siteConfig = await SiteConfiguration.findOne({ tenantId }) as ISiteConfigurationDocument;
   if (!siteConfig) {
     return next(new AppError('Invalid Tenant', StatusCodes.BAD_REQUEST));
@@ -210,6 +211,7 @@ export const deleteUser: RequestHandler = async (req, res, next) => {
  */
 export const getUsers: RequestHandler = async (req, res, next) => {
   try {
+    const { User } = req.tenantModels;
     const { limit, page, skip } = parsePagination(req, 100);
     type queryType = { role?: string, search?: string, phone?: string, sortBy?: string };
     const { role, search, phone, sortBy } = req.query as queryType;
@@ -238,8 +240,8 @@ export const getUsers: RequestHandler = async (req, res, next) => {
     // Sort & Execute
     const sort = buildSort(sortBy, ['name', 'email', 'role']);
     const [count, users] = await Promise.all([
-      req.tenantModels.User.countDocuments(query),
-      req.tenantModels.User.find(query)
+      User.countDocuments(query),
+      User.find(query)
         .sort(sort)
         .skip(skip)
         .limit(limit)
