@@ -30,7 +30,8 @@ export const checkPermissions = (requiredPermission: string, isSelf: boolean = f
       const { userId } = req.params;
 
       try {
-        const user = await req.tenantModels.User.findById(userId).exec();
+        const { User } = req.tenantModels;
+        const user = await User.findById(userId).exec();
 
         // Check if the authenticated user's 'sub' matches the target user's 'sub'
         if (user && user.sub === req.auth?.payload?.sub) {
