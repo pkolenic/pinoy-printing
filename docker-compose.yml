@@ -21,13 +21,13 @@ services:
       - PORT=3001
       - TENANT_REDIS_URI=redis://:${DOCKER_REDIS_PASSWORD}@redis:6379/1
       - REDIS_URI=redis://:${DOCKER_REDIS_PASSWORD}@redis:6379/0
-      # Add your Auth0 variables here or in a .env file
     volumes:
       - ./:/home/node/app
     expose:
       - "3001"
-    # Command to run your root package.json start script
+    # Command to run your root package.json start script - use if debugging is not needed
     # command: [ "npm", "start", "--prefix", "backend" ]
+    # Using the node command with the inspect flag allows us to connect to the node process for debugging
     command: [ "node", "--inspect=0.0.0.0:9229", "backend/dist/server.js" ]
     depends_on:
       - redis
