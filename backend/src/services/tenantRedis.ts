@@ -1,8 +1,11 @@
-import { createClient } from "redis";
+import { createClient, SetOptions } from "redis";
 import { logger } from '../utils/logging/index.js';
 
+// Derived type for the Redis client
 export type RedisClient = ReturnType<typeof createClient>;
-const tenantClients = new Map<string, any>();
+
+// Connection Pool: Maps "URL" -> "Connected Redis Client"
+const connectionPools = new Map<string, RedisClient>();
 
 export class TenantRedisWrapper {
   private client: RedisClient;
@@ -13,12 +16,24 @@ export class TenantRedisWrapper {
     this.prefix = `tenant:${tenantId}`; // Standard hierarchical namespace
   }
 
-  private applyPrefix(key: string) { return `${this.prefix}::${key}`; }
+  private applyPrefix(key: string): string {
+    return `${this.prefix}::${key}`;
+  }
 
   // Scoped helper methods
-  async get(key: string) { return this.client.get(this.applyPrefix(key)); }
 
-  async set(key: string, value: string, options?: any) {
+  // Support for single or multiple key deletion
+  async del(key: string | string[]) {
+    const keys = Array.isArray(key) ? key.map(k => this.applyPrefix(k)) : this.applyPrefix(key);
+    return this.client.del(keys);
+  }
+
+  async get(key: string) {
+    return this.client.get(this.applyPrefix(key));
+  }
+
+  // Fixed Typing: Use SetOptions from 'redis' for the options parameter
+  async set(key: string, value: string, options?: SetOptions) {
     return this.client.set(this.applyPrefix(key), value, options);
   }
 
@@ -29,40 +44,45 @@ export class TenantRedisWrapper {
 
   async setJSON<T>(key: string, value: T, ttl?: number) {
     const payload = JSON.stringify(value);
-    return this.set(key, payload, ttl ? { EX: ttl } : undefined);
+    return this.set(
+      key,
+      payload,
+      ttl ? { expiration: { type: 'EX', value: ttl } } : undefined
+    );
   }
 
   // Fallback to allow direct client access if needed (unprefixed)
-  get native() { return this.client; }
+  get native() {
+    return this.client;
+  }
 }
 
 /**
- * Returns a cached connection for the tenant.
- * If your tenants share a single Redis instance, use the same URL.
+ * Returns a wrapper. Reuses a connection if the URL has been seen before.
  */
 export const getTenantRedis = async (tenantId: string, url?: string): Promise<TenantRedisWrapper> => {
-  if (tenantClients.has(tenantId)) {
-    return tenantClients.get(tenantId);
+  const targetUrl = url || process.env.TENANT_REDIS_URI || process.env.REDIS_URI || '';
+
+  // Check for an existing connection to this specific Redis URL
+  let client = connectionPools.get(targetUrl);
+
+  if (!client) {
+    client = createClient({ url: targetUrl });
+    client.on('error', (err) => logger.error({ message: `Redis Connection Error [${targetUrl}]:`, args: [err] }));
+
+    await client.connect();
+    connectionPools.set(targetUrl, client);
   }
 
-  const client = createClient({ url: url || process.env.TENANT_REDIS_URI || process.env.REDIS_URI });
-
-  client.on('error', (err) => logger.error({ message: `Redis Error [${tenantId}]:`, args: [err] }));
-
-  await client.connect();
-
-  const wrapped = new TenantRedisWrapper(client, tenantId);
-  tenantClients.set(tenantId, wrapped);
-
-  return wrapped;
+  // Return a new wrapper instance using the client from the pool
+  return new TenantRedisWrapper(client, tenantId);
 };
 
 /**
- * Cleanup all tenant connections
+ * Cleanup: Gracefully closes every unique connection in the pool
  */
 export const closeAllRedis = async () => {
-  for (const [_id, wrapped] of tenantClients.entries()) {
-    await wrapped.native.quit();
-  }
-  tenantClients.clear();
+  const quitPromises = Array.from(connectionPools.values()).map(client => client.quit());
+  await Promise.all(quitPromises);
+  connectionPools.clear();
 };

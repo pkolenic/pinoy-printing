@@ -17,7 +17,6 @@ import {
 } from '../models/index.js';
 
 import { paginateResponse } from "../utils/paginationHelper.js";
-import { getTenantId } from "../utils/system.js";
 
 const CATEGORY_TREE_CACHE_KEY = 'category_tree';
 const CATEGORY_CACHE_TTL = 3600;
@@ -30,12 +29,13 @@ const CATEGORY_CACHE_TTL = 3600;
 export const createCategory: RequestHandler = async (req, res, next) => {
   try {
     const { name, parent } = req.body;
+    const { Category } = req.tenantModels;
 
-    const newCategory = new req.tenantModels.Category({ name, parent }) as ICategoryDocument;
+    const newCategory = new Category({ name, parent }) as ICategoryDocument;
     await newCategory.save();
 
-    // Invalidate the cache after a database change
-    await redis.del(`${CATEGORY_TREE_CACHE_KEY}::${getTenantId(req)}`);
+    // Invalidate the category tree cache
+    await req.tenantRedis.del(CATEGORY_TREE_CACHE_KEY);
 
     res.status(StatusCodes.CREATED).json(newCategory);
   } catch (error) {
@@ -52,6 +52,7 @@ export const createCategory: RequestHandler = async (req, res, next) => {
  */
 export const getCategories: RequestHandler = async (req, res, next) => {
   try {
+    const { Category } = req.tenantModels;
     const limit = parseInt(req.query.limit as string, 10) || 100;
     const page = parseInt(req.query.page as string, 10) || 1;
 
@@ -66,8 +67,8 @@ export const getCategories: RequestHandler = async (req, res, next) => {
     const sort: { [key: string]: SortOrder } = { [sortField]: sortOrder };
 
     const [categoryCount, categories] = await Promise.all([
-      req.tenantModels.Category.countDocuments(query),
-      req.tenantModels.Category.find(query)
+      Category.countDocuments(query),
+      Category.find(query)
         .sort(sort)
         .skip((page - 1) * limit)
         .limit(limit)
@@ -88,6 +89,7 @@ export const getCategories: RequestHandler = async (req, res, next) => {
  */
 export const getCategoryTree: RequestHandler = async (req, res, next) => {
   try {
+    const { Category } = req.tenantModels;
     // 1. Check Redis Cache
     const cachedTree = await req.tenantRedis.getJSON<ICategoryTree[]>(CATEGORY_TREE_CACHE_KEY);
     if (cachedTree) {
@@ -97,7 +99,7 @@ export const getCategoryTree: RequestHandler = async (req, res, next) => {
     // 2. Fetch Flat list from DB
     // Use .lean() to get plain JS objects (ICategory[])
     type LeanCategory = ICategory & { _id: Types.ObjectId };
-    const categories = await req.tenantModels.Category.find()
+    const categories = await Category.find()
       .select("-createdAt -updatedAt -__v")
       .lean<LeanCategory[]>();
 
@@ -164,6 +166,7 @@ export const getCategory: RequestHandler = async (req, res, next) => {
  */
 export const deleteCategory: RequestHandler = async (req, res, next) => {
   try {
+    const { Category, Product } = req.tenantModels;
     // 1. Access the category attached by the createAttachMiddleware
     const { category: categoryToDelete } = req;
 
@@ -172,7 +175,7 @@ export const deleteCategory: RequestHandler = async (req, res, next) => {
     }
 
     // 2. Handle Orphaned Children: Find all direct children of the category being deleted
-    const directChildren = await req.tenantModels.Category.find({ parent: categoryToDelete._id });
+    const directChildren = await Category.find({ parent: categoryToDelete._id });
 
     // Find the parent's ID of the category we're deleting (can be null if it's a root category)
     const newParentId = categoryToDelete.parent;
@@ -191,7 +194,7 @@ export const deleteCategory: RequestHandler = async (req, res, next) => {
     }
 
     // 3. Handle Related Products: Remove the deleted category from any products' category arrays
-    await req.tenantModels.Product.updateMany(
+    await Product.updateMany(
       { categories: categoryToDelete._id },
       { $pull: { categories: categoryToDelete._id } }
     );
@@ -202,7 +205,7 @@ export const deleteCategory: RequestHandler = async (req, res, next) => {
     await categoryToDelete.deleteOne();
 
     // 5. Invalidate the category tree cache
-    await redis.del(CATEGORY_TREE_CACHE_KEY);
+    await req.tenantRedis.del(CATEGORY_TREE_CACHE_KEY);
 
     // 6. Send 204 No Content
     res.status(StatusCodes.NO_CONTENT).end();
@@ -218,6 +221,7 @@ export const deleteCategory: RequestHandler = async (req, res, next) => {
  */
 export const updateCategory: RequestHandler = async (req, res, next) => {
   try {
+    const { Category, Product } = req.tenantModels;
     const { name, parent } = req.body;
     const dbUpdates: Partial<ICategory> = {};
 
@@ -242,7 +246,7 @@ export const updateCategory: RequestHandler = async (req, res, next) => {
           return next(new AppError('Invalid parent ID format', StatusCodes.BAD_REQUEST));
         }
 
-        const potentialParent = await req.tenantModels.Category.findById(parent);
+        const potentialParent = await Category.findById(parent);
         if (potentialParent && potentialParent.path.startsWith(`${category.path}/`)) {
           return next(new AppError('A category cannot have its own descendant as a parent', StatusCodes.BAD_REQUEST));
         }
@@ -264,10 +268,10 @@ export const updateCategory: RequestHandler = async (req, res, next) => {
     // If the hierarchy changed, we must update all Products that use this category or its descendants
     if (isHierarchyChanging) {
       // Find all categories affected (the category itself + all descendants)
-      const affectedCategoryIds = await getRelatedCategoryIds(req.tenantModels.Category, category.slug);
+      const affectedCategoryIds = await getRelatedCategoryIds(Category, category.slug);
 
       // Find all products that contain any of these categories
-      const productsToUpdate = await req.tenantModels.Product.find({
+      const productsToUpdate = await Product.find({
         categories: { $in: affectedCategoryIds }
       });
 
@@ -280,8 +284,8 @@ export const updateCategory: RequestHandler = async (req, res, next) => {
       }));
     }
 
-    // Invalidate Cache
-    await redis.del(CATEGORY_TREE_CACHE_KEY);
+    // Invalidate the category tree cache
+    await req.tenantRedis.del(CATEGORY_TREE_CACHE_KEY);
 
     res.status(StatusCodes.OK).json(category);
   } catch (error) {

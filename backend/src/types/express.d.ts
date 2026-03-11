@@ -7,7 +7,6 @@ import {
   IUserDocument,
 } from '../models/index.js';
 import { TenantModels } from './tenantContext.js';
-import { TenantRedisWrapper } from '../services/redis.js';
 
 
 // Augment the library's internal JWTPayload interface to include custom properties
@@ -30,7 +29,7 @@ declare global {
       product?: IProductDocument;
       user?: IUserDocument;
       tenantConfig: ISiteConfigurationDocument;
-      tenantRedis: TenantRedisWrapper;
+      tenantRedis: import('../services/tenantRedis.js').TenantRedisWrapper;
     }
   }
 }
