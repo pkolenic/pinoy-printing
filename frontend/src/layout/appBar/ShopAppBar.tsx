@@ -62,7 +62,6 @@ export const ShopAppBar = ({ children, onProfileClick }: Props) => {
     handleLogout,
     isSessionActive,
     userProfile: user,
-    // userProfile: user = { name: "User", picture: "/images/avatar/default.png", role: "customer" },
   } = useAuthSession();
 
   const isStaff = ['admin', 'staff', 'owner'].includes(user.role);
