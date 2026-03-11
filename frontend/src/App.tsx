@@ -1,12 +1,6 @@
-import {
-  Fragment,
-  useEffect,
-  useState,
-} from 'react';
-import {
-  CssBaseline
-} from '@mui/material';
-import { LoadingPanel, MessagePanel } from './components';
+import { Fragment, useState } from 'react';
+import { CssBaseline } from '@mui/material';
+import { LoadingPanel } from './components';
 import {
   CategoryFilterBar,
   ShopAppBar,
@@ -17,32 +11,20 @@ import { useAuthSession, useSiteConfig } from "./hooks";
 import "./App.css"
 
 export function App() {
-  const {
-    isAuthenticated,
-    isLoading,
-    errorMessage,
-    isSessionActive,
-    loginWithRedirect
-  } = useAuthSession();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const requireAuthentication = useSiteConfig('settings.requireAuthentication', false);
 
-  useEffect(() => {
-    if (requireAuthentication && !isLoading && !isAuthenticated) {
-      loginWithRedirect();
-    }
-  }, [isAuthenticated, isLoading, loginWithRedirect]);
+  // Pass the requirement directly to the hook
+  const { isLoading, isSessionActive } = useAuthSession(requireAuthentication);
 
   if (isLoading) {
     return <LoadingPanel/>;
   }
 
-  if (errorMessage) {
-    return <MessagePanel severity="error" title="Something went wrong" message={errorMessage}/>;
-  }
-
-  const hasAccess = !requireAuthentication || isSessionActive;
-  if (!hasAccess) {
+  // Final Gate: If auth is required, we must be active.
+  // Otherwise, we just need to not be "loading".
+  const canAccess = !requireAuthentication || isSessionActive;
+  if (!canAccess) {
     return null;
   }
 

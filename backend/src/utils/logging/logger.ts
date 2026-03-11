@@ -1,5 +1,5 @@
 import colors from 'colors';
-import { DEBUG, INFO, ERRORS } from './index.js';
+import { DEBUG, INFO, WARNING, ERRORS } from './index.js';
 
 // Define valid color names supported by the library
 export type ColorName = keyof colors.Color;
@@ -41,7 +41,7 @@ class Logger {
     return Logger.instance;
   }
 
-  private log(severity: 'error' | 'info' | 'debug', options: LogOptions): void {
+  private log(severity: 'error' | 'warn' | 'info' | 'debug', options: LogOptions): void {
     const {
       message,
       color = 'white',
@@ -78,7 +78,10 @@ class Logger {
         const coloredArg = (colors as any)[color as ColorName](`\t${arg.trim()}`);
         console.info(coloredArg);
       });
-    } else if (severity === 'info' && INFO.includes(this.logLevel)) {
+    } else if (severity === 'warn' && WARNING.includes(this.logLevel)) {
+      console.warn(`${coloredMessage}${coloredArgString}`);
+    }
+    else if (severity === 'info' && INFO.includes(this.logLevel)) {
       console.info(`${coloredMessage}${coloredArgString}`);
     } else if (severity === 'debug' && DEBUG.includes(this.logLevel)) {
       console.debug(`${coloredMessage}${coloredArgString}`);
@@ -91,6 +94,10 @@ class Logger {
       backgroundColor: this.colors.ERROR_BACKGROUND,
       ...options
     });
+  }
+
+  public warn(options: LogOptions): void {
+    this.log('warn', options);
   }
 
   public info(options: LogOptions): void {

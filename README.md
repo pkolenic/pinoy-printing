@@ -48,7 +48,7 @@
   - Auth0 Settings:
     - AUTH0_AUDIENCE: The Auth0 API Identifier
     - AUTH0_ISSUER_DOMAIN: Defined as the Auth0 Issuer Domain
-    - AUTH0_TOKEN_SIGNING_ALG: Defined as the Auth0 Token Signing Algorithm
+    - AUTH0_TOKEN_SIGNING_ALGORITHM: Defined as the Auth0 Token Signing Algorithm
     - AUTH0_MANAGEMENT_CLIENT_ID: The Auth0 Management App Client ID
     - AUTH0_MANAGEMENT_CLIENT_SECRET: The Auth0 Management App Client Secret
     - AUTH0_AUTHORIZATION_DB: The Auth0 Connection Database

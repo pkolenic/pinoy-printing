@@ -38,7 +38,7 @@ interface UserProfileData {
 
 export function DetailsTab() {
   const [updateUser, {isLoading: isUpdating}] = userFeature.useUpdateUserMutation();
-  const {userProfile, isLoading, errorMessage} = useAuthSession();
+  const {userProfile, isLoading } = useAuthSession();
   const [isEditing, setIsEditing] = useState(false);
   const [userData, setUserData] = useState<UserProfileData | null>(null);
   const [formData, setFormData] = useState<UserProfileData | null>(null);
@@ -128,10 +128,6 @@ export function DetailsTab() {
   // Handle loading and error states
   if (isLoading) {
     return (<LoadingPanel message="Loading profile..."/>);
-  }
-
-  if (errorMessage) {
-    return (<MessagePanel severity="error" title="Error" message={errorMessage}/>);
   }
 
   if (!userData || !formData) {

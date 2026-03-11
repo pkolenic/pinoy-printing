@@ -13,8 +13,6 @@ import {
   updateCategoryRules,
 } from "../middleware/index.js";
 
-import { Category } from '../models/index.js';
-
 //Define allowed permission strings
 type CategoryPermission =
   | 'read:categories'
@@ -24,7 +22,7 @@ type CategoryPermission =
   | '';
 
 // ROUTE GUARDS
-const { guard, guardedResource } = createRouteGuards<CategoryPermission>(Category, 'categoryId', 'category');
+const { guard, guardedResource } = createRouteGuards<CategoryPermission, 'Category'>('Category', 'categoryId', 'category');
 
 // Define a Router instance
 const router = Router();

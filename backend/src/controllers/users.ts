@@ -2,22 +2,25 @@ import { RequestHandler } from "express";
 import { FilterQuery } from 'mongoose';
 import { StatusCodes } from "http-status-codes";
 import {
-  User,
-  UserRole,
   IUser,
   IUserDocument,
-  AddressSubdocument,
+  AddressSubdocument, ISiteConfigurationDocument,
 } from '../models/index.js';
 
 import {
   getManagementClient,
   getRoleId,
   getValidatedRole,
+  USER_ROLE_IDS,
 } from '../services/auth0.js';
 
+import { logger } from '../utils/logging/logger.js';
 import { AppError } from '../utils/errors/index.js';
 import { paginateResponse } from '../utils/paginationHelper.js';
 import { buildSort, parsePagination } from "../utils/controllers/queryHelper.js";
+import { getTenantId } from "../utils/system.js";
+import { getTenantDb, SiteConfiguration } from "../services/db.js";
+import { getTenantModels } from "../types/tenantContext.js";
 
 /**
  * Create a new user
@@ -38,8 +41,8 @@ export const createUser: RequestHandler = async (req, res, next) => {
     email_verified: true,
     name,
     username,
-    connection: process.env.AUTH0_AUTHORIZATION_DB,
-    app_metadata: { role },
+    connection: req.tenantConfig.backend.auth0.authorizationDB,
+    app_metadata: {},
     user_metadata: {},
   };
 
@@ -49,7 +52,8 @@ export const createUser: RequestHandler = async (req, res, next) => {
   }
 
   try {
-    const management = getManagementClient();
+    const { User } = req.tenantModels;
+    const management = getManagementClient(getTenantId(req), req.tenantConfig.backend.auth0);
     // 3. Create an Auth0 user
     const auth0User = await management.users.create(userData);
 
@@ -76,13 +80,92 @@ export const createUser: RequestHandler = async (req, res, next) => {
     await newUser.save();
 
     // 6. Sync MongoDB ID back to Auth0 app_meta_data - Use the Non-null assertion operator '!' since we know that user_id is defined
-    await management.users.update(auth0User.user_id!, { app_metadata: { id: newUser.id } });
+    const metadataKey = req.tenantConfig.tenantId.replace(/\./g, '_');
+    await management.users.update(auth0User.user_id!, { app_metadata: { [metadataKey]: { role, id: newUser.id } } });
 
     res.status(StatusCodes.CREATED).json(newUser);
   } catch (error) {
     next(error);
   }
 };
+
+/**
+ * Sync Auth0 user with MongoDB
+ * @route POST /api/users/sync
+ */
+export const syncUser: RequestHandler = async (req, res, next) => {
+  const { userId, tenant_id: tenantId, secret } = req.body;
+
+  // Check for missing fields
+  if (!userId || !tenantId || !secret) {
+    return next(new AppError('Missing required sync parameters', StatusCodes.BAD_REQUEST));
+  }
+
+  // Verify the secret against your environment variable
+  const expectedSecret = process.env.PINOY_SHOP_API_KEY;
+
+  if (secret !== expectedSecret) {
+    logger.warn({
+      message: `Unauthorized sync attempt for user ${userId} with invalid secret.`,
+      color: logger.colors.SYSTEM_WARNING
+    });
+    return next(new AppError('Unauthorized', StatusCodes.UNAUTHORIZED));
+  }
+
+  // Pull the siteConfiguration for the tenant - since the request is coming from Auth0 and not the tenant
+  const siteConfig = await SiteConfiguration.findOne({ tenantId }) as ISiteConfigurationDocument;
+  if (!siteConfig) {
+    return next(new AppError('Invalid Tenant', StatusCodes.BAD_REQUEST));
+  }
+  const tenantDb = getTenantDb(siteConfig?.backend?.database?.name || 'default');
+  const tenantModels = getTenantModels(tenantDb);
+  const User = tenantModels.User;
+  const role = 'customer';
+
+  try {
+    // Get Management Client
+    const management = getManagementClient(tenantId, siteConfig.backend.auth0);
+
+    // Get the Auth0User
+    const auth0User = await management.users.get(userId);
+    if (!auth0User.user_id) {
+      return next(new AppError('Failed to find Auth0 user', StatusCodes.BAD_REQUEST));
+    }
+
+    // Check if the user exists or needs creation
+    let user = await User.findOne({ sub: userId });
+
+    if (!user) {
+      // Assign the customer role as this is a self-signup user
+      await management.users.roles.assign(auth0User.user_id!, { roles: [getRoleId(role)] });
+
+      // Create and Save a MongoDB user
+      const newUser = new User({
+        name: auth0User.name,
+        username: auth0User.username,
+        email: auth0User.email,
+        sub: auth0User.user_id,
+        picture: auth0User.picture,
+        phone: null,
+        role,
+        addresses: [],
+      });
+
+      await newUser.save();
+      user = newUser;
+    }
+
+    // Sync MongoDB ID back to Auth0 app_meta_data - Use the Non-null assertion operator '!' since we know that user_id is defined
+    await management.users.update(auth0User.user_id!, { app_metadata: { [tenantId]: { role, id: user.id } } });
+
+    res.status(StatusCodes.OK).json({
+      role: user.role,
+      id: user.id || user._id.toString()
+    });
+  } catch (error) {
+    next(error);
+  }
+}
 
 /**
  * Delete a user by ID
@@ -99,7 +182,7 @@ export const deleteUser: RequestHandler = async (req, res, next) => {
     }
 
     // 2. Delete the user within Auth0
-    const management = getManagementClient();
+    const management = getManagementClient(getTenantId(req), req.tenantConfig.backend.auth0);
 
     // The '!' (non-null assertion) is used because our IUser interface guarantees that sub is defined
     await management.users.delete(user.sub!);
@@ -128,6 +211,7 @@ export const deleteUser: RequestHandler = async (req, res, next) => {
  */
 export const getUsers: RequestHandler = async (req, res, next) => {
   try {
+    const { User } = req.tenantModels;
     const { limit, page, skip } = parsePagination(req, 100);
     type queryType = { role?: string, search?: string, phone?: string, sortBy?: string };
     const { role, search, phone, sortBy } = req.query as queryType;
@@ -135,7 +219,7 @@ export const getUsers: RequestHandler = async (req, res, next) => {
     // Build Query
     const query: FilterQuery<IUser> = {};
 
-    if (role && Object.keys(UserRole).includes(role.toLowerCase())) {
+    if (role && role.toLowerCase() in USER_ROLE_IDS) {
       query.role = role.toLowerCase();
     }
     if (phone) {
@@ -182,7 +266,7 @@ export const updateUser: RequestHandler = async (req, res, next) => {
       return next(new AppError('User not found', StatusCodes.NOT_FOUND));
     }
 
-    const management = getManagementClient();
+    const management = getManagementClient(getTenantId(req), req.tenantConfig.backend.auth0);
     const canSetRole: boolean = req.auth?.payload.permissions?.includes('update:user-roles') ?? false;
     const userSub = user.sub!; // Non-null assertion for Auth0 calls
 
@@ -265,7 +349,7 @@ export const updateUserPassword: RequestHandler = async (req, res, next) => {
       return next(new AppError('Password is required', 400));
     }
 
-    const management = getManagementClient();
+    const management = getManagementClient(getTenantId(req), req.tenantConfig.backend.auth0);
     const userSub = user.sub!; // Non-null assertion for Auth0 calls
     await management.users.update(userSub, { password });
 
@@ -283,13 +367,15 @@ export const getUser: RequestHandler = async (req, res, next) => {
   try {
     const { user } = req;
 
-    if (!user) return next(new AppError('User not found', StatusCodes.NOT_FOUND));
+    if (!user) {
+      return next(new AppError('User not found', StatusCodes.NOT_FOUND));
+    }
 
     // Populate virtual 'orders'
     await user.populate('orders');
 
     // Sync with Auth0 for the latest profile picture
-    const management = getManagementClient();
+    const management = getManagementClient(getTenantId(req), req.tenantConfig.backend.auth0);
 
     // The '!' (non-null assertion) is used because our IUser interface guarantees that sub is defined
     const auth0User = await management.users.get(user.sub!);

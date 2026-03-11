@@ -2,13 +2,15 @@ import express, { Application } from 'express';
 import { Server } from 'http';
 
 import { connectDB, disconnectDB } from './services/db.js';
+import { clearAuth0Cache } from './services/auth0.js';
 import {
   errorHandler,
   loggerMiddleware as logger,
   notFoundHandler,
 } from "./middleware/index.js";
-
+import { closeAllRedis } from "./services/tenantRedis.js";
 import redis from './services/redis.js';
+
 import routes from './routes.js';
 import { logger as systemLogger } from './utils/logging/index.js';
 
@@ -89,7 +91,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
 
     try {
       // 2) Close external services concurrently
-      await Promise.all([redis.close(), disconnectDB()]);
+      await Promise.all([
+        redis.close(),
+        closeAllRedis(),
+        disconnectDB(),
+        clearAuth0Cache()
+      ]);
       systemLogger.info({ message: 'Resource cleanup successful', color: systemLogger.colors.SUCCESS });
     } catch (err) {
       systemLogger.error({ message: 'Error during resource cleanup:', args: [err]});

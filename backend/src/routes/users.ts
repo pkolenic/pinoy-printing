@@ -7,6 +7,7 @@ import {
   getUser,
   updateUser,
   updateUserPassword,
+  syncUser,
   createAddress,
   deleteAddress,
   updateAddress,
@@ -16,8 +17,6 @@ import {
   updateUserRules,
   updatePasswordRules,
 } from "../middleware/index.js";
-
-import { User } from '../models/index.js';
 
 //Define allowed permission strings
 type UserPermission =
@@ -31,7 +30,7 @@ type UserPermission =
   | 'self'; // Placeholder for self-only logic
 
 // ROUTE GUARDS
-const { guard, guardedResource } = createRouteGuards<UserPermission>(User, 'userId', 'user');
+const { guard, guardedResource } = createRouteGuards<UserPermission, 'User'>('User', 'userId', 'user');
 
 // Define a Router instance
 const router: Router = Router();
@@ -47,6 +46,7 @@ router.put('/:userId/password',
   guardedResource('self', updatePasswordRules, true),
   updateUserPassword,
 );
+router.post('/sync', syncUser);
 
 // ADDRESS ROUTES
 const addressRouter = Router({ mergeParams: true });

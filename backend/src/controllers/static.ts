@@ -1,24 +1,17 @@
 import { RequestHandler } from "express";
 import path from 'path';
 import { PUBLIC_DIR } from '../config/paths.js';
-import { getEnv, getTargetHostname } from "../utils/system.js";
+import { getTenantId } from "../utils/system.js";
 import { AppError } from "../utils/errors/index.js";
 import { StatusCodes } from "http-status-codes";
 import { Readable } from "node:stream";
 
 export const getIndex: RequestHandler = (req, res, _next) => {
-  const hostname = getTargetHostname(req);
-
-  if (hostname === getEnv(process.env.BASE_SITE_DOMAIN, 'localhost')) {
-    // TODO - return the html for the SERVICE SITE HOME PAGE
-    // return res.sendFile(path.join(PUBLIC_DIR, 'pinoyShop.html'));
-    res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
-  }
   res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
 };
 
 export const getFavicon: RequestHandler = async (req, res, next) => {
-  const hostname = getTargetHostname(req);
+  const tenantId = getTenantId(req);
 
   // TODO - lookup from Site Configs
   // const assetMap: Record<string, string> = {
@@ -26,7 +19,7 @@ export const getFavicon: RequestHandler = async (req, res, next) => {
   //   'domain2.com': 'https://s3.amazonaws.com',
   // };
 
-  // const externalUrl = assetMap[host] || 'https://s3.amazonaws.com';
+  // const externalUrl = assetMap[tenantId] || 'https://s3.amazonaws.com';
   const externalUrl = 'https://www.gstatic.com/images/branding/searchlogo/ico/favicon.ico';
 
   try {

@@ -31,7 +31,7 @@ export const AddressTab = () => {
   const [updateAddress, {isLoading: isUpdating}] = userFeature.useUpdateAddressMutation();
   const [createAddress, {isLoading: isCreating}] = userFeature.useCreateAddressMutation();
   const [deleteAddress] = userFeature.useDeleteAddressMutation();
-  const {userProfile, isLoading, errorMessage} = useAuthSession();
+  const {userProfile, isLoading} = useAuthSession();
   const [isEditing, setIsEditing] = useState(false);
   const [addressId, setAddressId] = useState<string | null>(null);
   const [addressData, setAddressData] = useState<Address[]>([]);
@@ -204,10 +204,6 @@ export const AddressTab = () => {
   // Handle loading and error states
   if (isLoading) {
     return (<LoadingPanel message="Loading profile..."/>);
-  }
-
-  if (errorMessage) {
-    return (<MessagePanel severity="error" title="Error" message={errorMessage}/>);
   }
 
   if (!addressData) {

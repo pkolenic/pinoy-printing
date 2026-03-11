@@ -2,6 +2,7 @@ export interface IAuth0Settings {
   domain: string;
   audience: string;
   clientId: string;
+  connection: string;
 }
 
 export interface IHeroSettings {

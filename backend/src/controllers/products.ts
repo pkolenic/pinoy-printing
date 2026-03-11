@@ -9,10 +9,8 @@ import csv from 'csv-parser';
 import { AppError } from '../utils/errors/index.js';
 
 import {
-  Category,
   ICategory,
   ICategoryDocument,
-  Product,
   IProduct,
   CSV_PRODUCT_HEADERS,
   getRelatedCategoryIds,
@@ -90,6 +88,7 @@ const sanitizeProduct = (product: IProduct, isStaff: boolean): IProduct => {
  */
 export const createProduct: RequestHandler = async (req, res, next) => {
   try {
+    const { Product } = req.tenantModels;
     const { image, category, ...data } = matchedData(req);
 
     // TODO -- Upload image to Store
@@ -133,6 +132,7 @@ export const createProduct: RequestHandler = async (req, res, next) => {
  */
 export const getProducts: RequestHandler = async (req, res, next) => {
   try {
+    const { Category, Product } = req.tenantModels;
     const { limit, page, skip } = parsePagination(req);
     const userPermissions = req.auth?.payload.permissions || [];
     const isStaff = userPermissions.includes('read:inventory')
@@ -150,7 +150,7 @@ export const getProducts: RequestHandler = async (req, res, next) => {
     const { search, category, minPrice, maxPrice, maxInventory, sortBy } = req.query as queryType
 
     if (category) {
-      const categoryIds = await getRelatedCategoryIds(category.toLowerCase());
+      const categoryIds = await getRelatedCategoryIds(Category, category.toLowerCase());
       if (categoryIds.length === 0) {
         // If slug provided but category doesn't exist, return empty early'
         return res.status(200).json(paginateResponse(req, [], 0, page, limit));
@@ -286,6 +286,7 @@ export const importProducts: RequestHandler = async (req, res, next) => {
     })
     .on('end', async () => {
       try {
+        const { Category, Product } = req.tenantModels;
         const stats = { created: 0, updated: 0, errors: 0 };
         const importResults: IImportResult[] = [];
 

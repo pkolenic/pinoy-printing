@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Types, Model } from "mongoose";
+import { Schema, Document, Types } from "mongoose";
 import { AddressSchema, IAddress } from "./Address.js";
 import {
   IOrderItem,
@@ -56,6 +56,3 @@ export const OrderSchema = new Schema<IOrderDocument>({
   },
   toObject: {virtuals: true}
 });
-
-// User Model<IOrder> for the export
-export const Order: Model<IOrderDocument> = mongoose.models.Order || mongoose.model<IOrderDocument>('Order', OrderSchema);

@@ -1,15 +1,15 @@
 import { auth, UnauthorizedError } from 'express-oauth2-jwt-bearer';
 import { RequestHandler } from 'express';
-import { getEnv } from "../utils/system.js";
-
-const internalJwtCheck = auth({
-  audience: process.env.AUTH0_AUDIENCE,
-  issuerBaseURL: `https://${process.env.AUTH0_ISSUER_DOMAIN}`,
-  tokenSigningAlg: process.env.AUTH0_TOKEN_SIGNING_ALG,
-});
 
 export const jwtCheck: RequestHandler = (req, res, next) => {
-  const isAuthRequired = getEnv(process.env.REQUIRE_AUTHENTICATION, false);
+  const siteConfig = req.tenantConfig.backend;
+  const isAuthRequired = siteConfig.settings.requireAuthentication || false;
+
+  const internalJwtCheck = auth({
+    audience: siteConfig.auth0.audience,
+    issuerBaseURL: `https://${siteConfig.auth0.issuerDomain}/`,
+    tokenSigningAlg: siteConfig.auth0.tokenSigningAlgorithm,
+  });
 
   internalJwtCheck(req, res, (err) => {
     // If no error, proceed

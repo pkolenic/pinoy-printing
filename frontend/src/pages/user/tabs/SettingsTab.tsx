@@ -22,7 +22,6 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import {
   LoadingPanel,
-  MessagePanel,
 } from "../../../components";
 
 interface FormData {
@@ -33,7 +32,7 @@ interface FormData {
 export const SettingsTab = () => {
   const [updatePassword, {isLoading: isUpdating}] = userFeature.useUpdatePasswordMutation();
 
-  const {userProfile, isLoading, errorMessage} = useAuthSession();
+  const {userProfile, isLoading} = useAuthSession();
   const [isEditing, setIsEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState<FormData>({
@@ -159,10 +158,6 @@ export const SettingsTab = () => {
   // Handle loading and error states
   if (isLoading) {
     return (<LoadingPanel message="Loading profile..."/>);
-  }
-
-  if (errorMessage) {
-    return (<MessagePanel severity="error" title="Error" message={errorMessage}/>);
   }
 
   return (

@@ -16,3 +16,13 @@ export const isPrimaryDomain = () => {
 
   return primaryDomains.includes(window.location.hostname);
 };
+
+export const getTenantId = () => {
+  const hostname = window.location.hostname;
+  return hostname.toLowerCase() // Standardize the case for case-sensitive DBs/Redis
+    .trim() // Remove accidental padding
+    .replace(/^www\./, '') // Normalize (treat www.site.com as site.com)
+    .replace(/[^a-z0-9.-]/g, '') // Keep alphanumeric, dots, and hyphens (standard DNS chars)
+    .replace(/^\.+|\.+$/g, '') // Remove leading/trailing dots for safety
+    .replace(/\./g, '_'); // Replace dots with underscores for DB compatibility
+}

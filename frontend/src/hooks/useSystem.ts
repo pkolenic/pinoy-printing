@@ -14,6 +14,7 @@ const DEFAULT_CONFIG: ISiteConfig = {
     domain: "",
     audience: "",
     clientId: "",
+    connection: "",
   },
   site: {
     name: "Pinoy Shop",

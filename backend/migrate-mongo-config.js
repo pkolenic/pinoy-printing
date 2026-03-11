@@ -8,6 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
+// TODO - This is work for updating the SAAS DB but will need something to handle each of the tenants DBs
 const config = {
   mongodb: {
     url: process.env.MONGO_URI,

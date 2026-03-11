@@ -1,7 +1,6 @@
 import { RequestHandler } from "express";
 
 import {
-  Order,
   IOrderDocument,
   AddressSubdocument,
 } from "../models/index.js";
@@ -14,6 +13,7 @@ import { AppError } from '../utils/errors/index.js';
  */
 export const createOrder: RequestHandler = async (req, res, next) => {
   try {
+    const { Order } = req.tenantModels;
     const { user } = req;
 
     if (!user) {

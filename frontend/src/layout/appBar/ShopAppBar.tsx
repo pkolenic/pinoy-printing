@@ -33,6 +33,7 @@ import {
 } from "@mui/icons-material";
 import { SearchBox } from '../../components';
 import { NavMenuItem, MenuOption } from "../menu";
+import { getTenantId } from '../../utils/domain';
 
 interface Props {
   children?: ReactElement<{ elevation?: number }>;
@@ -60,7 +61,7 @@ export const ShopAppBar = ({ children, onProfileClick }: Props) => {
     loginWithRedirect,
     handleLogout,
     isSessionActive,
-    userProfile: user = { name: "User", picture: "/images/avatar/default.png", role: "customer" },
+    userProfile: user,
   } = useAuthSession();
 
   const isStaff = ['admin', 'staff', 'owner'].includes(user.role);
@@ -105,9 +106,13 @@ export const ShopAppBar = ({ children, onProfileClick }: Props) => {
       },
       {
         id: 'login',
-        label: 'Login',
+        label: 'Login / Sign up',
         icon: Login,
-        onClick: loginWithRedirect,
+        onClick: () => loginWithRedirect({
+          authorizationParams: {
+            'ext-tenant_id': getTenantId(),
+          }
+        }),
         hide: isSessionActive,
       },
       {
@@ -130,8 +135,8 @@ export const ShopAppBar = ({ children, onProfileClick }: Props) => {
           color="inherit"
           sx={{
             backgroundColor: '#fff',
-            pt: { xs: 2, lg: 0 },
-            pb: { xs: 2, lg: 0 },
+            pt: { xs: 2, md: 0 },
+            pb: { xs: 2, md: 0 },
           }}
         >
           <Container
@@ -145,7 +150,7 @@ export const ShopAppBar = ({ children, onProfileClick }: Props) => {
             <Toolbar
               disableGutters
               sx={{
-                flexDirection: { xs: 'column', lg: 'row' },
+                flexDirection: { xs: 'column', md: 'row' },
                 justifyContent: 'space-between',
               }}
             >
@@ -176,7 +181,7 @@ export const ShopAppBar = ({ children, onProfileClick }: Props) => {
                   ))}
                 </Menu>
                 <Typography variant="h6" sx={{ ml: 2, mr: 2 }}>
-                  { useSiteConfig('site.name', 'Pinoy Shop')}
+                  {useSiteConfig('site.name', 'Pinoy Shop')}
                 </Typography>
               </Box>
               <SearchBox sx={{ mt: { xs: 2, lg: 0 } }}/>
@@ -187,8 +192,8 @@ export const ShopAppBar = ({ children, onProfileClick }: Props) => {
       </ElevationScroll>
       <Toolbar
         sx={{
-          pt: { xs: 2, lg: 0 },
-          pb: { xs: 2, lg: 0 },
+          pt: { xs: 2, md: 0 },
+          pb: { xs: 2, md: 0 },
           minHeight: `${height}px !important`,
         }}
       />

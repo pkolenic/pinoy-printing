@@ -5,7 +5,6 @@ import {
   NextFunction,
 } from 'express';
 import { StatusCodes } from "http-status-codes";
-import { User } from "../models/index.js";
 import { AppError } from '../utils/errors/index.js'
 
 /**
@@ -31,6 +30,7 @@ export const checkPermissions = (requiredPermission: string, isSelf: boolean = f
       const { userId } = req.params;
 
       try {
+        const { User } = req.tenantModels;
         const user = await User.findById(userId).exec();
 
         // Check if the authenticated user's 'sub' matches the target user's 'sub'

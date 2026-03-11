@@ -1,4 +1,7 @@
-import path from 'node:path';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// Use process.cwd() to consistently get the project root
-export const PUBLIC_DIR = path.join(process.cwd(), 'public');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export const PUBLIC_DIR = path.resolve(__dirname, '..', '..', 'public');

@@ -10,8 +10,6 @@ import redis from '../services/redis.js';
 import { AppError } from '../utils/errors/index.js';
 
 import {
-  Category,
-  Product,
   ICategory,
   ICategoryTree,
   ICategoryDocument,
@@ -31,12 +29,13 @@ const CATEGORY_CACHE_TTL = 3600;
 export const createCategory: RequestHandler = async (req, res, next) => {
   try {
     const { name, parent } = req.body;
+    const { Category } = req.tenantModels;
 
     const newCategory = new Category({ name, parent }) as ICategoryDocument;
     await newCategory.save();
 
-    // Invalidate the cache after a database change
-    await redis.del(CATEGORY_TREE_CACHE_KEY);
+    // Invalidate the category tree cache
+    await req.tenantRedis.del(CATEGORY_TREE_CACHE_KEY);
 
     res.status(StatusCodes.CREATED).json(newCategory);
   } catch (error) {
@@ -53,6 +52,7 @@ export const createCategory: RequestHandler = async (req, res, next) => {
  */
 export const getCategories: RequestHandler = async (req, res, next) => {
   try {
+    const { Category } = req.tenantModels;
     const limit = parseInt(req.query.limit as string, 10) || 100;
     const page = parseInt(req.query.page as string, 10) || 1;
 
@@ -87,10 +87,11 @@ export const getCategories: RequestHandler = async (req, res, next) => {
  * @route GET /api/categories/tree
  * @permission read:categories
  */
-export const getCategoryTree: RequestHandler = async (_req, res, next) => {
+export const getCategoryTree: RequestHandler = async (req, res, next) => {
   try {
+    const { Category } = req.tenantModels;
     // 1. Check Redis Cache
-    const cachedTree = await redis.getJSON<ICategoryTree[]>(CATEGORY_TREE_CACHE_KEY);
+    const cachedTree = await req.tenantRedis.getJSON<ICategoryTree[]>(CATEGORY_TREE_CACHE_KEY);
     if (cachedTree) {
       return res.status(StatusCodes.OK).json(cachedTree);
     }
@@ -132,7 +133,7 @@ export const getCategoryTree: RequestHandler = async (_req, res, next) => {
     });
 
     // 4. Save to Redis (Cache for 1 hour or until invalidated)
-    await redis.setJSON(CATEGORY_TREE_CACHE_KEY, tree, CATEGORY_CACHE_TTL);
+    await req.tenantRedis.setJSON(CATEGORY_TREE_CACHE_KEY, tree, CATEGORY_CACHE_TTL);
 
     res.status(StatusCodes.OK).json(tree);
   } catch (error) {
@@ -165,6 +166,7 @@ export const getCategory: RequestHandler = async (req, res, next) => {
  */
 export const deleteCategory: RequestHandler = async (req, res, next) => {
   try {
+    const { Category, Product } = req.tenantModels;
     // 1. Access the category attached by the createAttachMiddleware
     const { category: categoryToDelete } = req;
 
@@ -203,7 +205,7 @@ export const deleteCategory: RequestHandler = async (req, res, next) => {
     await categoryToDelete.deleteOne();
 
     // 5. Invalidate the category tree cache
-    await redis.del(CATEGORY_TREE_CACHE_KEY);
+    await req.tenantRedis.del(CATEGORY_TREE_CACHE_KEY);
 
     // 6. Send 204 No Content
     res.status(StatusCodes.NO_CONTENT).end();
@@ -219,6 +221,7 @@ export const deleteCategory: RequestHandler = async (req, res, next) => {
  */
 export const updateCategory: RequestHandler = async (req, res, next) => {
   try {
+    const { Category, Product } = req.tenantModels;
     const { name, parent } = req.body;
     const dbUpdates: Partial<ICategory> = {};
 
@@ -265,7 +268,7 @@ export const updateCategory: RequestHandler = async (req, res, next) => {
     // If the hierarchy changed, we must update all Products that use this category or its descendants
     if (isHierarchyChanging) {
       // Find all categories affected (the category itself + all descendants)
-      const affectedCategoryIds = await getRelatedCategoryIds(category.slug);
+      const affectedCategoryIds = await getRelatedCategoryIds(Category, category.slug);
 
       // Find all products that contain any of these categories
       const productsToUpdate = await Product.find({
@@ -281,8 +284,8 @@ export const updateCategory: RequestHandler = async (req, res, next) => {
       }));
     }
 
-    // Invalidate Cache
-    await redis.del(CATEGORY_TREE_CACHE_KEY);
+    // Invalidate the category tree cache
+    await req.tenantRedis.del(CATEGORY_TREE_CACHE_KEY);
 
     res.status(StatusCodes.OK).json(category);
   } catch (error) {

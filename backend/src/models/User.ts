@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Types, Model } from "mongoose";
+import { Schema, Document, Types } from "mongoose";
 import { AddressSchema, AddressSubdocument, IAddress } from "./Address.js";
 
 /**
@@ -32,7 +32,7 @@ export interface IUserDocument extends Omit<IUser, 'addresses'>, Document {
 /**
  * Define the Mongoose Schema for the User Model.
  */
-const UserSchema = new Schema<IUserDocument>({
+export const UserSchema = new Schema<IUserDocument>({
   picture: {type: String, required: false},
   name: {type: String, required: true},
   username: {type: String, required: true},
@@ -106,17 +106,3 @@ UserSchema.pre('validate', function (this: IUserDocument, next: (err?: Error) =>
 
   next();
 });
-
-// Use Model<IUser> for the export
-export const User: Model<IUserDocument> = mongoose.models.User || mongoose.model<IUserDocument>('User', UserSchema);
-
-/**
- * Role Mapping
- * Added 'as string' to handle potential undefined env variables
- */
-export const UserRole: Record<string, string | undefined> = {
-  'admin': process.env.AUTH0_ADMIN_ROLE_ID,
-  'customer': process.env.AUTH0_CUSTOMER_ROLE_ID,
-  'owner': process.env.AUTH0_OWNER_ROLE_ID,
-  'staff': process.env.AUTH0_STAFF_ROLE_ID,
-};
