@@ -20,23 +20,32 @@ export const useAuthSession = (requireAuth: boolean = false) => {
   const token = useAppSelector((state) => state.auth.token);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // 1. Unified Logout Handler
-  const handleLogout = useCallback(() => {
+  // Unified Logout Handler
+  const handleLogout = useCallback(async () => {
     setIsLoggingOut(true);
     // Clear the Redux state immediately
     dispatch(authFeature.clearToken());
-    logout({ logoutParams: { returnTo: window.location.origin } });
+    await logout({ logoutParams: { returnTo: window.location.origin } });
   }, [logout, dispatch]);
 
-  // 2. Sync Token
+  // Unified Login Handler
+  const handleLogin = useCallback(async () => {
+    await loginWithRedirect({
+      authorizationParams: {
+        'ext-tenant_id': getTenantId(),
+      }
+    });
+  }, [loginWithRedirect]);
+
+  // 1. Sync Token
   useEffect(() => {
     // If we are logged into Auth0 but don't have a Redux token yet, get it.
     if (isAuthenticated && !token && !isLoggingOut) {
       getAccessTokenSilently()
         .then(t => dispatch(authFeature.setToken(t)))
-        .catch(() => {
+        .catch(async () => {
           if (requireAuth) {
-            handleLogout();
+            await handleLogout();
           } else {
             dispatch(authFeature.clearToken());
           }
@@ -44,13 +53,13 @@ export const useAuthSession = (requireAuth: boolean = false) => {
     }
   }, [isAuthenticated, token, getAccessTokenSilently, isLoggingOut, dispatch, handleLogout, requireAuth]);
 
-  // 3. Fetch Backend Profile
+  // 2. Fetch Backend Profile
   const userId = auth0User?.account?.id;
   const profile = userFeature.useGetUserQuery(
     (isAuthenticated && userId && token) ? userId : skipToken
   );
 
-  // 4. Derive Loading & Active States
+  // 3. Derive Loading & Active States
 
   // Active means we have the full set of data
   const isSessionActive = !!(isAuthenticated && token && profile.data);
@@ -58,19 +67,17 @@ export const useAuthSession = (requireAuth: boolean = false) => {
   // We are "Busy" if we are authenticated but haven't finished the data chain yet.
   const isBusy = auth0Loading || isLoggingOut || (isAuthenticated && (!token || profile.isLoading));
 
-  // 5. Redirect Logic
+  // 4. Redirect Logic
   useEffect(() => {
     // Only redirect if Auth0 has finished its initial check and we aren't already handling a code
     const isHandlingCallback = window.location.search.includes("code=");
 
     if (!auth0Loading && requireAuth && !isAuthenticated && !isHandlingCallback && !isLoggingOut) {
-      loginWithRedirect({
-        authorizationParams: { 'ext-tenant_id': getTenantId() }
-      });
+      handleLogin();
     }
   }, [auth0Loading, requireAuth, isAuthenticated, loginWithRedirect, isLoggingOut]);
 
-  // 6. Logout on Missing Profile (Strictly for requireAuth mode)
+  // 5. Logout on Missing Profile (Strictly for requireAuth mode)
   useEffect(() => {
     if (requireAuth && profile.isSuccess && !profile.data && !isLoggingOut) {
       handleLogout();
@@ -88,7 +95,7 @@ export const useAuthSession = (requireAuth: boolean = false) => {
     isAuthenticated,
     isSessionActive,
     handleLogout,
-    loginWithRedirect,
+    handleLogin,
     userProfile,
     token
   };

@@ -33,7 +33,6 @@ import {
 } from "@mui/icons-material";
 import { SearchBox } from '../../components';
 import { NavMenuItem, MenuOption } from "../menu";
-import { getTenantId } from '../../utils/domain';
 
 interface Props {
   children?: ReactElement<{ elevation?: number }>;
@@ -58,7 +57,7 @@ export const ShopAppBar = ({ children, onProfileClick }: Props) => {
   const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
 
   const {
-    loginWithRedirect,
+    handleLogin,
     handleLogout,
     isSessionActive,
     userProfile: user,
@@ -108,11 +107,7 @@ export const ShopAppBar = ({ children, onProfileClick }: Props) => {
         id: 'login',
         label: 'Login / Sign up',
         icon: Login,
-        onClick: () => loginWithRedirect({
-          authorizationParams: {
-            'ext-tenant_id': getTenantId(),
-          }
-        }),
+        onClick: handleLogin,
         hide: isSessionActive,
       },
       {
@@ -125,7 +120,7 @@ export const ShopAppBar = ({ children, onProfileClick }: Props) => {
       },
     ];
     return allOptions.filter(opt => !opt.hide);
-  }, [isSessionActive, isStaff, onProfileClick, handleLogout, loginWithRedirect]);
+  }, [isSessionActive, isStaff, onProfileClick, handleLogout, handleLogin]);
 
   return (
     <Fragment>
