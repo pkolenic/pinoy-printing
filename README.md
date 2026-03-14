@@ -58,7 +58,7 @@
     - AUTH0_OWNER_ROLE_ID: The Auth0 Owner Role ID
     - AUTH0_STAFF_ROLE_ID: The Auth0 Staff Role ID
   - MongoDB Settings:
-    - MONGO_URI: MongoDB connection string
+    - MONGO_URL: MongoDB connection string
     - MONGO_DB: MongoDB database name
   - Redis Settings:
     - REDIS_URI: Redis connection string

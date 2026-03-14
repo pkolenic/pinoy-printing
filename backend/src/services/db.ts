@@ -14,16 +14,16 @@ const tenantDbCache = new Map<string, Connection>();
 export let SiteConfiguration: Model<ISiteConfiguration>;
 
 export const connectDB = async (): Promise<void> => {
-  const uri = process.env.MONGO_URI;
+  const url = process.env.MONGO_URL;
   const dbName = process.env.MONGO_DB; // Your 'config' or 'admin' DB name
 
-  if (!uri || !dbName) {
+  if (!url || !dbName) {
     throw new AppError('MongoDB URI or Base Database Name is missing', 500);
   }
 
   try {
     // Create the persistent base connection
-    baseConnection = mongoose.createConnection(uri, {
+    baseConnection = mongoose.createConnection(url, {
       dbName: dbName,
       maxPoolSize: 100, // Shared pool for all future useDb() calls
     });

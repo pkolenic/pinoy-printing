@@ -55,7 +55,7 @@ const getSiteConfiguration = async (tenantId: string): Promise<ISiteConfiguratio
         backend: {
           database: {
             name: getEnv(process.env.MONGO_DB, ''),
-            url: getEnv(process.env.MONGO_URI, ''),
+            url: getEnv(process.env.MONGO_URL, ''),
           },
           redis: {
             url: getEnv(process.env.TENANT_REDIS_URI || process.env.REDIS_URI, ''),
