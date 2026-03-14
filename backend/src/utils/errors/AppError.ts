@@ -1,10 +1,10 @@
 export class AppError extends Error {
-  public readonly status: number;
+  public readonly statusCode: number;
   public readonly isOperational: boolean;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, statusCode: number) {
     super(message);
-    this.status = status;
+    this.statusCode = statusCode;
     this.isOperational = true; // Useful to distinguish between expected vs. unexpected errors
 
     // Restore prototype chain (required when extending built-in classes in TS)
