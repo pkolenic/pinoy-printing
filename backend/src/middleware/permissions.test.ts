@@ -29,6 +29,11 @@ describe('checkPermissions Middleware', () => {
     vi.clearAllMocks();
     mockRes = {};
     // Setup a basic mock request structure
+    const mockModel = {
+      findById: vi.fn().mockReturnThis(),
+      exec: vi.fn(),
+    };
+
     mockReq = {
       auth: {
         payload: {
@@ -38,10 +43,7 @@ describe('checkPermissions Middleware', () => {
       },
       params: {},
       tenantModels: {
-        User: {
-          findById: vi.fn().mockReturnThis(),
-          exec: vi.fn(),
-        },
+        User: mockModel,
       },
     };
   });

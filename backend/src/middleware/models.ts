@@ -1,8 +1,11 @@
-import { RequestHandler } from 'express';
+import {
+  Request,
+  Response,
+  NextFunction,
+} from 'express';
 import { StatusCodes } from 'http-status-codes';
 
 import { AppError } from '../utils/errors/index.js';
-import { AddressSubdocument } from '../models/index.js';
 import { TenantModels } from '../types/tenantContext.js';
 
 /**
@@ -13,8 +16,8 @@ export const createAttachMiddleware = <K extends keyof TenantModels>(
   modelName: K,
   paramName: string,
   reqPropertyName: string
-): RequestHandler => {
-  return async (req, _res, next) => {
+) => {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     const itemId: string = req.params[paramName];
     const model = req.tenantModels[modelName];
 
@@ -22,7 +25,7 @@ export const createAttachMiddleware = <K extends keyof TenantModels>(
       const item = await model.findById(itemId).exec();
 
       if (!item) {
-        return next(new AppError(`${String(modelName)} not found`, StatusCodes.NO_CONTENT));
+        return next(new AppError(`${String(modelName)} not found`, StatusCodes.NOT_FOUND));
       }
 
       // Attach the document to the request object
@@ -40,32 +43,3 @@ export const createAttachMiddleware = <K extends keyof TenantModels>(
     }
   }
 }
-
-/**
- * Middleware to find a specific address from the attached user
- * and attach it to the request for the next handler.
- */
-export const attachAddress: RequestHandler = (req, res, next) => {
-  const { user } = req;
-
-  // Look for addressId in body (POST) or query (GET)
-  const addressId = req.body.addressId || req.query.addressId;
-
-  if (!user) {
-    return next(new AppError('User context required to attach address', StatusCodes.INTERNAL_SERVER_ERROR));
-  }
-
-  // If an addressId was provided, find it in the user's subdocuments
-  if (addressId) {
-    const foundAddress = user.addresses.id(addressId) as AddressSubdocument | null;
-
-    if (!foundAddress) {
-      return next(new AppError('The specified address was not found', StatusCodes.NO_CONTENT));
-    }
-
-    // Attach to the request for the controller to use
-    req.address = foundAddress;
-  }
-
-  next();
-};
