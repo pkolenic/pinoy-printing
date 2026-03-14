@@ -1,33 +1,28 @@
 import { body } from 'express-validator';
-import sanitizeHtml from 'sanitize-html';
 import fs from 'fs';
 import csv from 'csv-parser';
 import { StatusCodes } from 'http-status-codes';
 import { AppError } from '../../utils/errors/index.js';
 import { withValidation } from './common.js';
+import { cleanText } from "../../utils/strings.js";
 import { CSV_PRODUCT_HEADERS } from '../../models/index.js'
 
 /**
  * Base rule for Product validation
  */
 const productBase = [
-  body('name').trim().notEmpty().withMessage('Product name is required').escape(),
-  body('sku').trim().notEmpty().withMessage('Product SKU is required').escape(),
+  body('name').notEmpty().withMessage('Product name is required').customSanitizer(cleanText()),
+  body('sku').trim().notEmpty().withMessage('Product SKU is required').customSanitizer(cleanText({ lowercase: true })),
   body('description')
     .trim()
     .notEmpty().withMessage('Description is required')
     .isLength({ max: 1000 }).withMessage('Description cannot exceed 1000 characters')
-    .escape(),
+    .customSanitizer(cleanText()),
   body('details')
     .optional()
     .trim()
-    .customSanitizer(value => {
-      return sanitizeHtml(value, {
-        allowedTags: ['b', 'i', 'em', 'strong', 'p', 'br', 'ul', 'ol', 'li'],
-        allowedAttributes: {} // Block all attributes like 'onerror' or 'style'
-      });
-    })
-    .isLength({ max: 10000 }).withMessage('Details cannot exceed 10000 characters'),
+    .isLength({ max: 10000 }).withMessage('Details cannot exceed 10000 characters')
+    .customSanitizer(cleanText({ mode: 'richText'})),
   body('price').isFloat({ min: 0 }).withMessage('Price must be a positive number'),
   body('category').isMongoId().withMessage('Category must be a valid category ID'),
   body('quantity').optional().isInt({ min: 0 }).withMessage('Quantity must be zero or greater'),

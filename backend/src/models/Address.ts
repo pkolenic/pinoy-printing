@@ -1,8 +1,4 @@
-import {
-  Schema,
-  Document,
-  Types
-} from "mongoose";
+import { Schema, Types } from "mongoose";
 import startCase from "lodash.startcase";
 
 /**
@@ -10,23 +6,24 @@ import startCase from "lodash.startcase";
  * This includes database fields, virtuals, and transient properties.
  */
 export interface IAddress {
-  _id: Types.ObjectId;
   name: string;
   street: string;
   street2?: string;
   city: string;
   region: string;
   postalCode: string;
-  // Virtuals and transient properties
-  isPrimary: boolean;
-  _isPrimaryInput?: boolean;
+  _isPrimaryInput?: boolean; // Transient input field
 }
 
 /**
  * Hydrated Subdocument Type
  * Used when the Address is accessed through a Mongoose Document.
- */
-export type AddressSubdocument = IAddress & Types.Subdocument;
+ * We add Mongoose's subdocument helpers (like .parent() and ._id) here.
+ *  */
+export type AddressSubdocument = IAddress & Types.Subdocument & {
+  _id: Types.ObjectId;
+  isPrimary: boolean;
+}
 
 /**
  * Schema Definition
@@ -34,15 +31,15 @@ export type AddressSubdocument = IAddress & Types.Subdocument;
  * this to AddressSubdocument when embedded in a parent Document.
  */
 export const AddressSchema = new Schema<IAddress>({
-  name: {type: String, required: true, trim: true, lowercase: true},
-  street: {type: String, required: true, trim: true, set: (v: string | undefined) => startCase(v)},
-  street2: {type: String, required: false, trim: true, set: (v: string | undefined) => startCase(v)},
-  city: {type: String, required: true, trim: true, set: (v: string | undefined) => startCase(v), index: true},
-  region: {type: String, required: true, trim: true, set: (v: string | undefined) => startCase(v), index: true},
-  postalCode: {type: String, required: true, trim: true, uppercase: true, index: true},
+  name: { type: String, required: true, trim: true, lowercase: true },
+  street: { type: String, required: true, trim: true, set: (v: string | undefined) => startCase(v) },
+  street2: { type: String, required: false, trim: true, set: (v: string | undefined) => startCase(v) },
+  city: { type: String, required: true, trim: true, set: (v: string | undefined) => startCase(v), index: true },
+  region: { type: String, required: true, trim: true, set: (v: string | undefined) => startCase(v), index: true },
+  postalCode: { type: String, required: true, trim: true, uppercase: true, index: true },
 }, {
-  toJSON: {virtuals: true},
-  toObject: {virtuals: true}
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
 /**

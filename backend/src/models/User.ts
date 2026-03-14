@@ -1,50 +1,61 @@
-import { Schema, Document, Types } from "mongoose";
+import {
+  Model,
+  Schema,
+  HydratedDocument,
+  Types,
+} from "mongoose";
 import { AddressSchema, AddressSubdocument, IAddress } from "./Address.js";
+import { IOrder } from "./Order.js";
 
 /**
  * Define the Interface for the User.
  * This includes database fields and virtuals
  */
 export interface IUser {
-  _id: Types.ObjectId;
   picture?: string;
   name: string;
   username: string;
   sub: string;
   email: string;
   phone?: string;
-  // Use Types.DocumentArray to enable helper methods like .id()
-  // addresses: Types.DocumentArray<AddressSubdocument>;
   addresses: IAddress[];
   primaryAddressId?: Types.ObjectId;
   role: 'customer' | 'staff' | 'owner' | 'admin';
-  // Virtuals
-  orders?: any[]; // Replace 'any' with your IOrder interface later
+}
+
+/**
+ * Interface for Mongoose Documents
+ * This is used to define methods that can be accessed on the User model.
+ */
+interface IUserOverrides {
+  addresses: Types.DocumentArray<AddressSubdocument>;
+  // Represents the array of Orders when .populate('orders') is called
+  orders?: IOrder[];
 }
 
 /**
  * Interface for Mongoose Documents
  */
-export interface IUserDocument extends Omit<IUser, 'addresses'>, Document {
-  addresses: Types.DocumentArray<AddressSubdocument>;
-}
+export type IUserDocument = HydratedDocument<IUser, IUserOverrides>;
+
+export type UserModel = Model<IUser, {}, {}, {}, IUserDocument>;
 
 /**
  * Define the Mongoose Schema for the User Model.
  */
-export const UserSchema = new Schema<IUserDocument>({
-  picture: {type: String, required: false},
-  name: {type: String, required: true},
-  username: {type: String, required: true},
-  sub: {type: String, required: true},
-  email: {type: String, required: true},
-  phone: {type: String, required: false},
+export const UserSchema = new Schema<IUser, UserModel>({
+  picture: { type: String, required: false },
+  name: { type: String, required: true },
+  username: { type: String, required: true },
+  sub: { type: String, required: true },
+  email: { type: String, required: true },
+  phone: { type: String, required: false },
   addresses: {
     type: [AddressSchema],
     validate: {
       validator: function (addresses: IAddress[]) {
         const names: string[] = addresses.map((a: IAddress) => a.name.toLowerCase().trim());
-        // If unique name count matches total count, there are no duplicates.
+        // If the unique name count matches the total count, there are no duplicates.
         const uniqueNames: Set<string> = new Set(names);
         return names.length === uniqueNames.size;
       },
@@ -63,8 +74,8 @@ export const UserSchema = new Schema<IUserDocument>({
     enum: ['customer', 'staff', 'owner', 'admin'],
   },
 }, {
-  toJSON: {virtuals: true},
-  toObject: {virtuals: true},
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
 });
 
 // Virtual for Orders
@@ -79,7 +90,7 @@ UserSchema.virtual('orders', {
  * Pre-validate Middleware
  * 'this' is typed as the User Document
  */
-UserSchema.pre('validate', function (this: IUserDocument, next: (err?: Error) => void): void {
+UserSchema.pre('validate', function (this: IUserDocument, next) {
   // If no addresses exist, clear the primary pointer
   if (!this.addresses || this.addresses.length === 0) {
     this.primaryAddressId = undefined;
@@ -90,7 +101,7 @@ UserSchema.pre('validate', function (this: IUserDocument, next: (err?: Error) =>
    * Identifies the address explicitly marked as primary from the input payload.
    * Uses the virtual/transient `_isPrimaryInput` field.
    */
-  const newPrimary: AddressSubdocument | undefined = this.addresses.find((addr: AddressSubdocument): boolean => addr._isPrimaryInput === true);
+  const newPrimary = this.addresses.find(addr => addr._isPrimaryInput === true);
 
   if (newPrimary) {
     // Update the pointer to the new primary address subdocument

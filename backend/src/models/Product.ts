@@ -4,7 +4,7 @@ import mongoose, {
   Model,
   Types,
 } from "mongoose";
-import { ICategory } from "./Category.js";
+import { ICategory, ICategoryDocument } from "./Category.js";
 
 /**
  * Define the Interface for the Product Document.
@@ -18,9 +18,9 @@ export interface IProduct {
   price: number;
   image?: string;
   customizationSchema?: Record<string, any>; // Stores the dynamic configuration for the product's customization options
-  categories: (Types.ObjectId | ICategory)[];
-  category?: string;
-  quantity?: number;
+  category: Types.ObjectId | ICategory;
+  quantityOnHand: number;    // Physical stock
+  quantityAvailable: number; // Stock minus "committed" orders
   showIfOutOfStock?: boolean;
 }
 
@@ -61,7 +61,6 @@ export const ProductSchema = new Schema<IProduct, ProductModel>({
   name: {
     type: String,
     required: true,
-    unique: true,
     trim: true,
     index: true,
   },
@@ -78,53 +77,25 @@ export const ProductSchema = new Schema<IProduct, ProductModel>({
   price: { type: Number, required: true },
   image: { type: String, required: false },
   customizationSchema: { type: Schema.Types.Mixed, required: false },
-  categories: [{
+  category: {
     type: Schema.Types.ObjectId,
     ref: 'Category',
-    required: [true, 'At least one category is required.'],
+    required: [true, 'A category is required.'],
     index: true,
-  }],
-  category: { type: String, required: false, index: true },
-  quantity: { type: Number, required: true, min: [0, 'Quantity cannot be less than 0.'] },
+  },
+  quantityOnHand: { type: Number, required: true, min: [0, 'Quantity cannot be less than 0.'] },
+  quantityAvailable: { type: Number, required: true, min: [0, 'Quantity cannot be less than 0.'] },
   showIfOutOfStock: { type: Boolean, required: false, default: false },
+}, {
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
+  timestamps: true,
 });
 
 /**
- * PRE-SAVE: Ensure the full category hierarchy is stored
+ * Virtual: Category Name
+ * Simple getter for the category name.
  */
-ProductSchema.pre<IProductDocument>('save', async function (next) {
-  // Only run this logic if categories were modified, or it's a new product
-  if (this.isModified('categories') && this.categories?.length > 0) {
-    try {
-      // Get the Model reference safely via Mongoose internal registry
-      const CategoryModel = mongoose.model<ICategory>('Category');
-
-      // Grab the last ID in the array (the "leaf" provided by the client)
-      const leafCategoryId = this.categories[this.categories.length - 1];
-
-      // Use the typed model to look up the leaf category by ID
-      const leafCategory = await CategoryModel.findById(leafCategoryId).lean();
-
-      if (leafCategory) {
-        // Assign the leaf category's name to the products category name
-        this.category = leafCategory.name;
-
-        if (leafCategory?.path) {
-          // Split path (e.g., "electronics/computers/laptops") into slugs
-          const slugs = leafCategory.path.split('/');
-
-          // Find all categories matching these slugs to get their ObjectIds
-          const ancestorDocs = await CategoryModel.find({
-            slug: { $in: slugs }
-          }).select('_id').lean();
-
-          // Map them to ObjectIds and re-assign
-          this.categories = ancestorDocs.map(doc => doc._id as Types.ObjectId);
-        }
-      }
-    } catch (error) {
-      return next(error as mongoose.CallbackError);
-    }
-  }
-  next();
+ProductSchema.virtual('categoryName').get(function (this: IProductDocument) {
+  return (this.category as any)?.name || null;
 });

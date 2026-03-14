@@ -3,6 +3,9 @@ import { createRouteGuards } from "../utils/routeGuards.js";
 import {
   createOrder,
 } from '../controllers/orders.js';
+import {
+  createOrderRules,
+} from "../middleware/index.js";
 
 //Define allowed permission strings
 type OrderPermission =
@@ -22,7 +25,7 @@ export const router = Router();
 router.get('/', guard('read:orders'), /*TODO - getOrders*/);
 
 router.route('/:userId')
-  .post(guardedResource('create:orders', [/* TODO - createOrderRules */], true), createOrder)
+  .post(guardedResource('create:orders', createOrderRules, true), createOrder);
 
 // USER ORDER ROUTES
 const orderRouter = Router({ mergeParams: true });
