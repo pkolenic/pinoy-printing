@@ -10,6 +10,11 @@ export default defineConfig({
       provider: 'v8', // or 'istanbul'
       reporter: ['text', 'json', 'html'],
       include: ['src/**/*.ts'], // Recommended to limit scope
+      exclude: [
+        'src/test/**',        // Excludes the entire test folder - contains testing utilities
+        'src/**/*.test.ts',   // Ensures individual test files are skipped
+        'src/**/index.ts',    // Exclude entry points
+      ],
     },
   },
 });
