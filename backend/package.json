@@ -3,6 +3,12 @@
   "version": "1.0.0",
   "description": "Node/Express backend server",
   "type": "module",
+  "imports": {
+    "#/*": {
+      "import": "./dist/*.js",
+      "default": "./src/*.ts"
+    }
+  },
   "main": "dist/server.js",
   "scripts": {
     "test": "vitest",

@@ -11,10 +11,10 @@ import {
   ICategory,
   ICategoryTree,
   ICategoryDocument,
-} from '../models/index.js';
+} from '#/models/index.js';
 import {
   IUpdateCategoryRequest
-} from "../types/requests/index.js";
+} from "#/types/requests/index.js";
 
 import { paginateResponse } from "../utils/paginationHelper.js";
 

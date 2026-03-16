@@ -1,5 +1,9 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "#/*": ["./src/*"]
+    },
     "sourceMap": true,
     "target": "ES2022",
     "module": "NodeNext",
@@ -16,7 +20,7 @@
       "./node_modules/@types",
       "./src/types"
     ],
-    "types": ["vitest/globals", "node"]
+    "types": ["node"]
   },
   "include": ["src/**/*"],
   "exclude": [
