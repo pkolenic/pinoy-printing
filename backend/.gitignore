@@ -1,7 +1,10 @@
 node_modules
 dist
 dist-ssr
-public/*
+# Ignore everything inside public, but don't ignore the public folder itself
+public/**/*
+# Exception: Do NOT ignore the .gitkeep file inside public
+!public/.gitkeep
 
 # Editor directories and files
 .vscode/*
