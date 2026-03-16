@@ -32,7 +32,10 @@ const eslintConfig = config(
     name: "eslint-plugin-react/jsx-runtime",
     ...reactPlugin.configs.flat["jsx-runtime"],
   },
-  reactHooksPlugin.configs["recommended-latest"],
+  {
+    name: "react-hooks",
+    ...reactHooksPlugin.configs.flat.recommended,
+  },
   {
     name: "main",
     linterOptions: {
