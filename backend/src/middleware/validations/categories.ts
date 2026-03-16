@@ -2,28 +2,29 @@ import { body } from 'express-validator';
 import { withValidation } from './common.js';
 
 // Base rule for category names
-const categoryNameBase = body('name')
+const getCategoryNameBase = () => body('name')
   .trim()
-  .notEmpty().withMessage('Category name is required')
-  .isLength({ min: 2 }).withMessage('Name must be at least 2 characters long');
+  .exists().withMessage('Category Name is required')
+  .notEmpty().withMessage('Category Name is required')
+  .isLength({ min: 2 }).withMessage('Category Name must be at least 2 characters long');
 
 // Rule for parent ID validation
-const categoryParentBase = body('parent')
-  .optional({ nullable: true }) // Allows field to be null or missing
-  .isMongoId().withMessage('Parent must be a valid Mongo ID');
+const getCategoryParentBase = () => body('parent')
+  .optional({ values: 'null' }) // Allows field to be null or missing
+  .isMongoId().withMessage('Parent must be a valid Category ID');
 
 /**
  * Rules for POST /api/categories/
  */
 export const createCategoryRules = withValidation([
-  categoryNameBase,
-  categoryParentBase,
+  getCategoryNameBase(),
+  getCategoryParentBase(),
 ]);
 
 /**
  * Rules for PUT /api/categories/:categoryId
  */
 export const updateCategoryRules = withValidation([
-  categoryNameBase.optional(), // Allows partial updates
-  categoryParentBase,
+  getCategoryNameBase().optional(),  // Allows partial updates
+  getCategoryParentBase(),
 ]);
