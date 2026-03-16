@@ -5,7 +5,9 @@ import { withValidation } from './common.js';
 const getCategoryNameBase = () => body('name')
   .trim()
   .exists().withMessage('Category Name is required')
+  .bail()
   .notEmpty().withMessage('Category Name is required')
+  .bail()
   .isLength({ min: 2 }).withMessage('Category Name must be at least 2 characters long');
 
 // Rule for parent ID validation

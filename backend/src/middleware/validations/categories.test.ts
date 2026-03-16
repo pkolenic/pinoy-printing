@@ -9,6 +9,19 @@ import {
 
 describe('Category Validation Rules', () => {
   describe('createCategoryRules', () => {
+    it('should fail if name is missing', async () => {
+      const req = await validate(createCategoryRules, {});
+      const result = validationResult(req);
+
+      expect(result.isEmpty()).toBe(false);
+      // Use .find() to be more robust if multiple errors exist
+      expect(result.array()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ msg: 'Category Name is required' })
+        ])
+      );
+    });
+
     it('should fail if name is empty', async () => {
       const req = await validate(createCategoryRules, { name: '' });
       const result = validationResult(req);
@@ -31,10 +44,10 @@ describe('Category Validation Rules', () => {
         expect.arrayContaining([
           expect.objectContaining({ msg: 'Category Name must be at least 2 characters long' })
         ])
-      )
+      );
     });
 
-    it('should fail if parent is not a MongoID', async () => {
+    it('should fail if parent ID is invalid', async () => {
       const req = await validate(createCategoryRules, {
         name: 'Electronics',
         parent: 'invalid-id'
@@ -46,7 +59,7 @@ describe('Category Validation Rules', () => {
         expect.arrayContaining([
           expect.objectContaining({ msg: 'Parent must be a valid Category ID' })
         ])
-      )
+      );
     });
 
     it('should pass with valid data', async () => {
@@ -74,36 +87,45 @@ describe('Category Validation Integration', () => {
   describe('createCategoryRules', () => {
     const tester = createValidationTester(createCategoryRules, 'post');
 
-    it('should fail if name is missing', async () => {
+    it('should return 400 if name is missing', async () => {
       const response = await tester.send({
         parent: '60d5ec1234567890abcdef12'
       });
 
-      expect(response.status).toBe(StatusCodes.BAD_REQUEST); // Verify the status code
-      expect(response.body).toHaveProperty('errors');
-      expect(response.body.errors[0].msg).toBe('Category Name is required');
+      expect(response.status).toBe(StatusCodes.BAD_REQUEST);
+      expect(response.body.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ msg: 'Category Name is required' })
+        ])
+      );
     });
 
-    it('should fail if name is empty', async () => {
+    it('should return 400 if name is empty', async () => {
       const response = await tester.send({
         name: '',
         parent: '60d5ec1234567890abcdef12'
       });
 
-      expect(response.status).toBe(StatusCodes.BAD_REQUEST); // Verify the status code
-      expect(response.body).toHaveProperty('errors');
-      expect(response.body.errors[0].msg).toBe('Category Name is required');
+      expect(response.status).toBe(StatusCodes.BAD_REQUEST);
+      expect(response.body.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ msg: 'Category Name is required' })
+        ])
+      );
     });
 
-    it('should fail if name is too short', async () => {
+    it('should return 400 if name is too short', async () => {
       const response = await tester.send({
         name: 'a',
         parent: '60d5ec1234567890abcdef12'
       });
 
-      expect(response.status).toBe(StatusCodes.BAD_REQUEST); // Verify the status code
-      expect(response.body).toHaveProperty('errors');
-      expect(response.body.errors[0].msg).toBe('Category Name must be at least 2 characters long');
+      expect(response.status).toBe(StatusCodes.BAD_REQUEST);
+      expect(response.body.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ msg: 'Category Name must be at least 2 characters long' })
+        ])
+      );
     });
 
     it('should return 400 if parent ID is invalid', async () => {
@@ -113,11 +135,14 @@ describe('Category Validation Integration', () => {
       });
 
       expect(response.status).toBe(StatusCodes.BAD_REQUEST);
-      expect(response.body).toHaveProperty('errors');
-      expect(response.body.errors[0].msg).toBe('Parent must be a valid Category ID');
+      expect(response.body.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ msg: 'Parent must be a valid Category ID' })
+        ])
+      );
     });
 
-    it('should return 200 OK if validation passes', async () => {
+    it('should return 200 if validation passes', async () => {
       const response = await tester.send({
         name: 'Books',
         parent: '60d5ec1234567890abcdef12'
@@ -149,14 +174,22 @@ describe('Category Validation Integration', () => {
       });
 
       expect(response.status).toBe(StatusCodes.BAD_REQUEST);
-      expect(response.body).toHaveProperty('errors');
-      expect(response.body.errors[0].msg).toBe('Category Name must be at least 2 characters long');
+      expect(response.body.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ msg: 'Category Name must be at least 2 characters long' })
+        ])
+      );
     });
 
     it('should still validate parent ID format if provided', async () => {
-      const res = await tester.send({ parent: 'invalid-id' });
-      expect(res.status).toBe(StatusCodes.BAD_REQUEST);
-      expect(res.body.errors[0].msg).toBe('Parent must be a valid Category ID');
+      const response = await tester.send({ parent: 'invalid-id' });
+
+      expect(response.status).toBe(StatusCodes.BAD_REQUEST);
+      expect(response.body.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ msg: 'Parent must be a valid Category ID' })
+        ])
+      );
     });
   });
 });
