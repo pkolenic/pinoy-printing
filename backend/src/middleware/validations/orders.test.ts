@@ -4,6 +4,9 @@ import { validate, createValidationTester } from "../../test/validations.utils";
 import { StatusCodes } from "http-status-codes";
 import { createOrderRules } from './orders.js';
 
+const VALID_MONGO_ID = '60d5ec1234567890abcdef12';
+const ANOTHER_VALID_MONGO_ID = '70d5ec1234567890abcdef12';
+
 describe('Order Validation Rules', () => {
   describe('createOrderRules', () => {
     it('should fail if items is missing', async () => {
@@ -54,7 +57,7 @@ describe('Order Validation Rules', () => {
     it('should fail if any item is missing product ID', async () => {
       const req = await validate(createOrderRules, {
         items: [
-          { product: '60d5ec1234567890abcdef12', quantity: 1 },
+          { product: VALID_MONGO_ID, quantity: 1 },
           { quantity: 1 },
         ]
       });
@@ -70,7 +73,7 @@ describe('Order Validation Rules', () => {
     it('should fail if any item product ID is not a valid Mongo ID', async () => {
       const req = await validate(createOrderRules, {
         items: [
-          { product: '60d5ec1234567890abcdef12', quantity: 1 },
+          { product: VALID_MONGO_ID, quantity: 1 },
           { product: 'invalid-id', quantity: 2 },
         ]
       });
@@ -87,8 +90,8 @@ describe('Order Validation Rules', () => {
     it('should fail if any item is missing quantity', async () => {
       const req = await validate(createOrderRules, {
         items: [
-          { product: '60d5ec1234567890abcdef12', quantity: 1 },
-          { product: '70d5ec1234567890abcdef12' },
+          { product: VALID_MONGO_ID, quantity: 1 },
+          { product: ANOTHER_VALID_MONGO_ID },
         ]
       });
       const result = validationResult(req);
@@ -103,8 +106,8 @@ describe('Order Validation Rules', () => {
     it('should fail if any item quantity is not a number', async () => {
       const req = await validate(createOrderRules, {
         items: [
-          { product: '60d5ec1234567890abcdef12', quantity: 1 },
-          { product: '70d5ec1234567890abcdef12', quantity: true },
+          { product: VALID_MONGO_ID, quantity: 1 },
+          { product: ANOTHER_VALID_MONGO_ID, quantity: true },
         ]
       });
       const result = validationResult(req);
@@ -119,8 +122,8 @@ describe('Order Validation Rules', () => {
     it('should fail if any item quantity is not an integer', async () => {
       const req = await validate(createOrderRules, {
         items: [
-          { product: '60d5ec1234567890abcdef12', quantity: 1 },
-          { product: '70d5ec1234567890abcdef12', quantity: 1.3 },
+          { product: VALID_MONGO_ID, quantity: 1 },
+          { product: ANOTHER_VALID_MONGO_ID, quantity: 1.3 },
         ]
       });
       const result = validationResult(req);
@@ -135,8 +138,8 @@ describe('Order Validation Rules', () => {
     it('should fail if any item quantity is less than 1', async () => {
       const req = await validate(createOrderRules, {
         items: [
-          { product: '60d5ec1234567890abcdef12', quantity: 1 },
-          { product: '70d5ec1234567890abcdef12', quantity: -1 },
+          { product: VALID_MONGO_ID, quantity: 1 },
+          { product: ANOTHER_VALID_MONGO_ID, quantity: -1 },
         ]
       });
       const result = validationResult(req);
@@ -152,8 +155,8 @@ describe('Order Validation Rules', () => {
     it('should fail if any item customization is not an object', async () => {
       const req = await validate(createOrderRules, {
         items: [
-          { product: '60d5ec1234567890abcdef12', quantity: 1, customization: { color: 'red' } },
-          { product: '70d5ec1234567890abcdef12', quantity: 1, customization: 'red' },
+          { product: VALID_MONGO_ID, quantity: 1, customization: { color: 'red' } },
+          { product: ANOTHER_VALID_MONGO_ID, quantity: 1, customization: 'red' },
         ]
       });
       const result = validationResult(req);
@@ -169,8 +172,8 @@ describe('Order Validation Rules', () => {
     it('should pass with valid data', async () => {
       const req = await validate(createOrderRules, {
         items: [
-          { product: '60d5ec1234567890abcdef12', quantity: 1, customization: { color: 'red' } },
-          { product: '70d5ec1234567890abcdef12', quantity: 1 },
+          { product: VALID_MONGO_ID, quantity: 1, customization: { color: 'red' } },
+          { product: ANOTHER_VALID_MONGO_ID, quantity: 1 },
         ]
       });
       const result = validationResult(req);
@@ -233,7 +236,7 @@ describe('Order Validation Integration', () => {
     it('should return 400 if any item is missing product ID', async () => {
       const response = await tester.send({
         items: [
-          { product: '60d5ec1234567890abcdef12', quantity: 1 },
+          { product: VALID_MONGO_ID, quantity: 1 },
           { quantity: 1 }, // Missing product
         ]
       });
@@ -248,7 +251,7 @@ describe('Order Validation Integration', () => {
     it('should return 400 if any item product ID is not a valid Mongo ID', async () => {
       const response = await tester.send({
         items: [
-          { product: '60d5ec1234567890abcdef12', quantity: 1 },
+          { product: VALID_MONGO_ID, quantity: 1 },
           { product: 'invalid-id', quantity: 2 },
         ]
       });
@@ -264,8 +267,8 @@ describe('Order Validation Integration', () => {
     it('should return 400 if any item is missing quantity', async () => {
       const response = await tester.send({
         items: [
-          { product: '60d5ec1234567890abcdef12', quantity: 1 },
-          { product: '70d5ec1234567890abcdef12' }, // Missing quantity
+          { product: VALID_MONGO_ID, quantity: 1 },
+          { product: ANOTHER_VALID_MONGO_ID }, // Missing quantity
         ]
       });
 
@@ -279,8 +282,8 @@ describe('Order Validation Integration', () => {
     it('should return 400 if any item quantity is not a number', async () => {
       const response = await tester.send({
         items: [
-          { product: '60d5ec1234567890abcdef12', quantity: 1 },
-          { product: '70d5ec1234567890abcdef12', quantity: 'five' },
+          { product: VALID_MONGO_ID, quantity: 1 },
+          { product: ANOTHER_VALID_MONGO_ID, quantity: 'five' },
         ]
       });
 
@@ -294,8 +297,8 @@ describe('Order Validation Integration', () => {
     it('should return 400 if any item quantity is a decimal', async () => {
       const response = await tester.send({
         items: [
-          { product: '60d5ec1234567890abcdef12', quantity: 1 },
-          { product: '70d5ec1234567890abcdef12', quantity: 1.3 },
+          { product: VALID_MONGO_ID, quantity: 1 },
+          { product: ANOTHER_VALID_MONGO_ID, quantity: 1.3 },
         ]
       });
 
@@ -309,8 +312,8 @@ describe('Order Validation Integration', () => {
     it('should return 400 if any item quantity is less than 1', async () => {
       const response = await tester.send({
         items: [
-          { product: '60d5ec1234567890abcdef12', quantity: 1 },
-          { product: '70d5ec1234567890abcdef12', quantity: -1 },
+          { product: VALID_MONGO_ID, quantity: 1 },
+          { product: ANOTHER_VALID_MONGO_ID, quantity: -1 },
         ]
       });
 
@@ -325,8 +328,8 @@ describe('Order Validation Integration', () => {
     it('should return 400 if any item customization is not an object', async () => {
       const response = await tester.send({
         items: [
-          { product: '60d5ec1234567890abcdef12', quantity: 1, customization: { color: 'red' } },
-          { product: '70d5ec1234567890abcdef12', quantity: 5, customization: 'red' },
+          { product: VALID_MONGO_ID, quantity: 1, customization: { color: 'red' } },
+          { product: ANOTHER_VALID_MONGO_ID, quantity: 5, customization: 'red' },
         ]
       });
 
@@ -341,8 +344,8 @@ describe('Order Validation Integration', () => {
     it('should return 200 if validation passes', async () => {
       const response = await tester.send({
         items: [
-          { product: '60d5ec1234567890abcdef12', quantity: 1, customization: { color: 'red' } },
-          { product: '70d5ec1234567890abcdef12', quantity: 5 },
+          { product: VALID_MONGO_ID, quantity: 1, customization: { color: 'red' } },
+          { product: ANOTHER_VALID_MONGO_ID, quantity: 5 },
         ]
       });
 

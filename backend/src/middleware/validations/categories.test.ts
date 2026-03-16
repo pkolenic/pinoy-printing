@@ -7,6 +7,8 @@ import {
   updateCategoryRules,
 } from './categories.js';
 
+const VALID_MONGO_ID = '60d5ec1234567890abcdef12';
+
 describe('Category Validation Rules', () => {
   describe('createCategoryRules', () => {
     it('should fail if name is missing', async () => {
@@ -24,6 +26,19 @@ describe('Category Validation Rules', () => {
 
     it('should fail if name is empty', async () => {
       const req = await validate(createCategoryRules, { name: '' });
+      const result = validationResult(req);
+
+      expect(result.isEmpty()).toBe(false);
+      // Use .find() to be more robust if multiple errors exist
+      expect(result.array()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ msg: 'Category Name is required' })
+        ])
+      );
+    });
+
+    it('should return 400 if name is empty', async () => {
+      const req = await validate(createCategoryRules, { name: '   ' });
       const result = validationResult(req);
 
       expect(result.isEmpty()).toBe(false);
@@ -62,10 +77,19 @@ describe('Category Validation Rules', () => {
       );
     });
 
+    it('should pass if parent is explicitly null', async () => {
+      const req = await validate(createCategoryRules, {
+        name: 'Electronics',
+        parent: null
+      });
+      const result = validationResult(req);
+      expect(result.isEmpty()).toBe(true);
+    });
+
     it('should pass with valid data', async () => {
       const req = await validate(createCategoryRules, {
         name: 'Electronics',
-        parent: '60d5ec1234567890abcdef12'
+        parent: VALID_MONGO_ID
       });
       const result = validationResult(req);
       expect(result.isEmpty()).toBe(true);
@@ -75,10 +99,39 @@ describe('Category Validation Rules', () => {
   describe('updateCategoryRules', () => {
     it('should pass if name is missing (optional in update)', async () => {
       const req = await validate(updateCategoryRules, {
-        parent: '60d5ec1234567890abcdef12'
+        parent: VALID_MONGO_ID
       });
       const result = validationResult(req);
       expect(result.isEmpty()).toBe(true);
+    });
+
+    it('should fail if name is too short', async () => {
+      const req = await validate(createCategoryRules, {
+        name: 'b',
+        parent: VALID_MONGO_ID
+      });
+      const result = validationResult(req);
+
+      expect(result.isEmpty()).toBe(false);
+      expect(result.array()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ msg: 'Category Name must be at least 2 characters long' })
+        ])
+      );
+    });
+
+    it('should still validate parent ID format if provided', async () => {
+      const req = await validate(createCategoryRules, {
+        parent: 'invalid-id'
+      });
+      const result = validationResult(req);
+
+      expect(result.isEmpty()).toBe(false);
+      expect(result.array()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ msg: 'Parent must be a valid Category ID' })
+        ])
+      );
     });
   });
 });
@@ -89,7 +142,7 @@ describe('Category Validation Integration', () => {
 
     it('should return 400 if name is missing', async () => {
       const response = await tester.send({
-        parent: '60d5ec1234567890abcdef12'
+        parent: VALID_MONGO_ID
       });
 
       expect(response.status).toBe(StatusCodes.BAD_REQUEST);
@@ -103,7 +156,21 @@ describe('Category Validation Integration', () => {
     it('should return 400 if name is empty', async () => {
       const response = await tester.send({
         name: '',
-        parent: '60d5ec1234567890abcdef12'
+        parent: VALID_MONGO_ID
+      });
+
+      expect(response.status).toBe(StatusCodes.BAD_REQUEST);
+      expect(response.body.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ msg: 'Category Name is required' })
+        ])
+      );
+    });
+
+    it('should return 400 if name is empty', async () => {
+      const response = await tester.send({
+        name: '   ',
+        parent: VALID_MONGO_ID
       });
 
       expect(response.status).toBe(StatusCodes.BAD_REQUEST);
@@ -117,7 +184,7 @@ describe('Category Validation Integration', () => {
     it('should return 400 if name is too short', async () => {
       const response = await tester.send({
         name: 'a',
-        parent: '60d5ec1234567890abcdef12'
+        parent: VALID_MONGO_ID
       });
 
       expect(response.status).toBe(StatusCodes.BAD_REQUEST);
@@ -142,10 +209,21 @@ describe('Category Validation Integration', () => {
       );
     });
 
+    it('should return 200 if parent is explicitly null', async () => {
+      const response = await tester.send({
+        name: 'Books',
+        parent: null
+      });
+
+      expect(response.status).toBe(StatusCodes.OK);
+      expect(response.body).not.toHaveProperty('errors');
+      expect(response.body.message).toBe('Success');
+    })
+
     it('should return 200 if validation passes', async () => {
       const response = await tester.send({
         name: 'Books',
-        parent: '60d5ec1234567890abcdef12'
+        parent: VALID_MONGO_ID
       });
 
       expect(response.status).toBe(StatusCodes.OK);
@@ -159,7 +237,7 @@ describe('Category Validation Integration', () => {
 
     it('should pass if name is missing (optional in update)', async () => {
       const response = await tester.send({
-        parent: '60d5ec1234567890abcdef12'
+        parent: VALID_MONGO_ID
       });
 
       expect(response.status).toBe(StatusCodes.OK);
@@ -170,7 +248,7 @@ describe('Category Validation Integration', () => {
     it('should fail if name is too short', async () => {
       const response = await tester.send({
         name: 'b',
-        parent: '60d5ec1234567890abcdef12'
+        parent: VALID_MONGO_ID
       });
 
       expect(response.status).toBe(StatusCodes.BAD_REQUEST);
