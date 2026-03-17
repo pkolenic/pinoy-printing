@@ -9,15 +9,66 @@ const connectionPools = new Map<string, RedisClient>();
 
 export class TenantRedisWrapper {
   private client: RedisClient;
+  private tenantId: string;
   private prefix: string;
 
   constructor(client: RedisClient, tenantId: string) {
     this.client = client;
+    this.tenantId = tenantId;
     this.prefix = `tenant:${tenantId}`; // Standard hierarchical namespace
   }
 
   private applyPrefix(key: string): string {
     return `${this.prefix}::${key}`;
+  }
+
+  /**
+   * Helper to handle all read operations with logging
+   */
+  private async _read<T>(key: string, parse?: (val: string) => T): Promise<T | null> {
+    const prefixedKey = this.applyPrefix(key);
+    const raw = await this.client.get(prefixedKey);
+
+    if (raw == null) {
+      logger.debug({
+        message: 'Tenant Cache miss:',
+        tenantId: this.tenantId,
+        color: logger.colors.SYSTEM_DEBUG,
+        args: [{ key: prefixedKey }]
+      });
+      return null;
+    }
+
+    logger.debug({
+      message: 'Tenant Cache hit:',
+      tenantId: this.tenantId,
+      color: logger.colors.SYSTEM_DEBUG,
+      args: [{ key: prefixedKey }]
+    });
+
+    return parse ? parse(raw) : (raw as unknown as T);
+  }
+
+  /**
+   * Helper to handle all write operations with logging
+   */
+  private async _write<T>(key: string, value: T, options?: SetOptions, serialize?: (val: T) => string): Promise<string | null> {
+    const prefixedKey = this.applyPrefix(key);
+    const payload = serialize ? serialize(value) : (value as unknown as string);
+
+    logger.debug({
+      message: 'Tenant Cache write:',
+      tenantId: this.tenantId,
+      color: logger.colors.SYSTEM_DEBUG,
+      args: [{ key: prefixedKey }, { options }]
+    });
+
+    // Modern node-redis (v4/v5) uses { EX: seconds } for TTL
+    return this.client.set(
+      prefixedKey,
+      payload,
+      options,
+    );
   }
 
   // Scoped helper methods
@@ -28,27 +79,21 @@ export class TenantRedisWrapper {
     return this.client.del(keys);
   }
 
-  async get(key: string) {
-    return this.client.get(this.applyPrefix(key));
+  async get(key: string): Promise<string | null> {
+    return this._read<string>(key);
   }
 
   // Fixed Typing: Use SetOptions from 'redis' for the options parameter
-  async set(key: string, value: string, options?: SetOptions) {
-    return this.client.set(this.applyPrefix(key), value, options);
+  async set(key: string, value: string, options?: SetOptions): Promise<string | null> {
+    return this._write(key, value, options);
   }
 
   async getJSON<T>(key: string): Promise<T | null> {
-    const raw = await this.get(key);
-    return raw ? JSON.parse(raw) : null;
+    return this._read<T>(key, JSON.parse);
   }
 
-  async setJSON<T>(key: string, value: T, ttl?: number) {
-    const payload = JSON.stringify(value);
-    return this.set(
-      key,
-      payload,
-      ttl ? { expiration: { type: 'EX', value: ttl } } : undefined
-    );
+  async setJSON<T>(key: string, value: T, ttl?: number): Promise<string | null> {
+    return this._write<T>(key, value, ttl ? { expiration: { type: 'EX', value: ttl } } : undefined, JSON.stringify);
   }
 
   // Fallback to allow direct client access if needed (unprefixed)
@@ -68,7 +113,11 @@ export const getTenantRedis = async (tenantId: string, url?: string): Promise<Te
 
   if (!client) {
     client = createClient({ url: targetUrl });
-    client.on('error', (err) => logger.error({ message: `Redis Connection Error [${targetUrl}]:`, args: [err] }));
+    client.on('error', (err) => logger.error({
+      message: `Redis Connection Error [${targetUrl}]:`,
+      tenantId,
+      args: [err]
+    }));
 
     await client.connect();
     connectionPools.set(targetUrl, client);
