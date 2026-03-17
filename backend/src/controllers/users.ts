@@ -107,6 +107,7 @@ export const syncUser: RequestHandler = async (req, res, next) => {
   if (secret !== expectedSecret) {
     logger.warn({
       message: `Unauthorized sync attempt for user ${userId} with invalid secret.`,
+      tenantId,
       color: logger.colors.SYSTEM_WARNING
     });
     return next(new AppError('Unauthorized', StatusCodes.UNAUTHORIZED));
