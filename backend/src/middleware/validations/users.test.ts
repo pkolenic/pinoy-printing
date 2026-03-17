@@ -182,7 +182,7 @@ describe('User Validation Integration', () => {
         phone: '12345' // Missing '+'
       });
       expect(res.body.errors).toEqual(expect.arrayContaining([
-        expect.objectContaining({ msg: expect.stringContaining('Invalid phone format, use the E.164 format ^+[0-9]{1,15}$') })
+        expect.objectContaining({ msg: 'Invalid phone format, use the E.164 format ^+[0-9]{1,15}$' })
       ]));
     });
 
