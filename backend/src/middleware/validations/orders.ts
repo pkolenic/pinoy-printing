@@ -3,15 +3,14 @@ import { withValidation } from './common.js';
 
 const getOrderBase = () => [
   body('items')
+    .exists().withMessage('Order must contain an array of item objects')
+    .bail()
     .isArray().withMessage('Order must contain an array of item objects')
     .bail()
     .isArray({ min: 1 }).withMessage('Order must contain at least one item')
     .bail()
     // Custom check: Ensure every entry in the array is an object
-    .custom((items) => {
-      if (!Array.isArray(items)) {
-        return false;
-      }
+    .custom((items: any[]) => {
       return items.every(item => typeof item === 'object' && item !== null && !Array.isArray(item));
     }).withMessage('Each item in items must be object'),
 
