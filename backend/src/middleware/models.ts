@@ -18,7 +18,17 @@ export const createAttachMiddleware = <K extends keyof TenantModels>(
   reqPropertyName: string
 ) => {
   return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    // If the resource was already attached (e.g. by checkPermissions), skip!
+    if ((req as any)[reqPropertyName]) {
+      return next();
+    }
+
     const itemId: string = req.params[paramName];
+
+    if (!itemId) {
+      return next(new AppError(`Missing parameter: ${paramName}`, StatusCodes.BAD_REQUEST));
+    }
+
     const model = req.tenantModels[modelName];
 
     try {
@@ -33,7 +43,12 @@ export const createAttachMiddleware = <K extends keyof TenantModels>(
       (req as any)[reqPropertyName] = item;
 
       next();
-    } catch (error: unknown) {
+    } catch (error: any) {
+      // Check for Mongoose CastError (e.g., invalid ObjectId)
+      if (error.name === 'CastError') {
+        return next(new AppError(`Invalid ${paramName}: ${itemId}`, StatusCodes.BAD_REQUEST));
+      }
+      // Check if the error is an AppError instance
       if (error instanceof AppError) {
         return next(error);
       }

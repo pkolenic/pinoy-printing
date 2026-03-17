@@ -28,15 +28,24 @@ export const checkPermissions = (requiredPermission: string, isSelf: boolean = f
     if (isSelf) {
       const { userId } = req.params;
 
+      if (!userId) {
+        return next(new AppError('User ID missing', StatusCodes.BAD_REQUEST));
+      }
+
       try {
         const { User } = req.tenantModels;
         const user = await User.findById(userId).exec();
 
         // Check if the authenticated user's 'sub' matches the target user's 'sub'
         if (user && user.sub === req.auth?.payload?.sub) {
+          // Attach the user so createAttachMiddleware can skip later
+          req.user = user;
           return next();
         }
-      } catch (error) {
+      } catch (error: any) {
+        if (error.name === 'CastError') {
+          return next(new AppError(`Invalid User ID format`, StatusCodes.BAD_REQUEST));
+        }
         // Handle database errors (e.g., invalid ID format)
         const message = error instanceof Error ? error.message : 'Internal Server Error';
         return next(new AppError(message, StatusCodes.INTERNAL_SERVER_ERROR));
