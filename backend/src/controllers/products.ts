@@ -7,7 +7,6 @@ import fs from 'fs';
 import csv from 'csv-parser';
 
 import { AppError } from '../utils/errors/index.js';
-
 import {
   CSV_PRODUCT_HEADERS,
   getRelatedCategoryIds,
@@ -16,7 +15,6 @@ import {
   resolveCategory,
 } from '../models/index.js'
 import { IImportResult, IProductDiff, IProductImportRow, } from "../types/requests/index.js";
-
 import { paginateResponse } from "../utils/paginationHelper.js";
 import { buildSort, parsePagination } from "../utils/controllers/queryHelper.js";
 
@@ -224,131 +222,122 @@ export const importProducts: RequestHandler = async (req, res, next) => {
   }
 
   const filePath = req.file.path;
-  const results: IProductImportRow[] = [];
   const isPreview = req.query.preview === 'true';
   const allowUpdate = req.query.allowUpdate === 'true';
+  const results: IProductImportRow[] = [];
 
-  fs.createReadStream(filePath)
-    .pipe(csv())
-    .on('data', (data: IProductImportRow) => results.push(data))
-    .on('error', (error) => {
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-      next(error);
-    })
-    .on('end', async () => {
-      try {
-        const { Category, Product, Order } = req.tenantModels;
-        const stats = { created: 0, updated: 0, errors: 0 };
-        const importResults: IImportResult[] = [];
+  try {
+    // 1. Read the entire file into the results array safely
+    const parser = fs.createReadStream(filePath).pipe(csv());
 
-        for (const row of results) {
-          let status: 'created' | 'updated' | 'error' = 'error';
-          let errorMessage: string | null = null;
-          let diff: IProductDiff | null = null;
+    for await (const record of parser) {
+      results.push(record);
+    }
 
-          // 1. Resolve Category
-          const categoryInput = row.category?.trim();
-          const resolvedCategoryId = await resolveCategory(Category, categoryInput);
+    const { Category, Product, Order } = req.tenantModels;
+    const stats = { created: 0, updated: 0, errors: 0 };
+    const importResults: IImportResult[] = [];
 
-          if (!resolvedCategoryId) {
+    // 2. Process the results
+    for (const row of results) {
+      let status: 'created' | 'updated' | 'error' = 'error';
+      let errorMessage: string | null = null;
+      let diff: IProductDiff | null = null;
+
+      // Resolve Category
+      const categoryInput = row.category?.trim();
+      const resolvedCategoryId = await resolveCategory(Category, categoryInput);
+
+      if (!resolvedCategoryId) {
+        status = 'error';
+        errorMessage = `Category not found for: "${categoryInput}"`;
+      } else {
+        try {
+          const sku = row.sku?.trim().toLowerCase();
+          const existingProduct = await Product.findOne({ sku });
+
+          if (existingProduct && !allowUpdate) {
             status = 'error';
-            errorMessage = `Category not found for: "${categoryInput}"`;
+            errorMessage = `SKU ${sku} already exists and updates are disabled.`;
           } else {
-            try {
-              // 2. Clean and Format Product Data
-              const sku = row.sku?.trim().toLowerCase();
-              const productData = {
-                sku,
-                name: row.name?.trim(),
-                description: row.description?.trim(),
-                details: row.details?.trim() || row.description?.trim(),
-                price: parseFloat(row.price) || 0,
-                category: resolvedCategoryId,
-                quantityOnHand: parseInt(row.quantity, 10) || 0,
-                quantityAvailable: parseInt(row.quantity, 10) || 0,
-                showIfOutOfStock: row.showIfOutOfStock?.toLowerCase() === 'true',
-                customizationSchema: row.customizationSchema?.trim() ? JSON.parse(row.customizationSchema) : {},
-              };
-              const existingProduct = await Product.findOne({ sku });
+            // Prepare product data
+            const quantity = parseInt(row.quantity, 10) || 0;
 
-              // 3. Handle Create/Update Logic
-              if (existingProduct) {
-                if (!allowUpdate) {
-                  status = 'error';
-                  errorMessage = `SKU ${sku} already exists and updates are disabled.`;
-                } else {
-                  status = 'updated';
+            const productData = {
+              sku,
+              name: row.name?.trim(),
+              description: row.description?.trim(),
+              details: row.details?.trim() || row.description?.trim(),
+              price: parseFloat(row.price) || 0,
+              category: resolvedCategoryId,
+              quantityOnHand: quantity,
+              quantityAvailable: quantity,
+              showIfOutOfStock: row.showIfOutOfStock?.toLowerCase() === 'true',
+              customizationSchema: row.customizationSchema?.trim() ? JSON.parse(row.customizationSchema) : {},
+            };
 
-                  // Calculated "Commited" Stock from Active Orders
-                  const committedQuantity = await getCommitedStock(Order, existingProduct._id);
+            if (existingProduct) {
+              status = 'updated';
 
-                  // Adjust productData based on your new logic
-                  const newPhysicalQty = parseInt(row.quantity, 10) || 0;
-                  productData.quantityOnHand = newPhysicalQty;
-                  // quantityAvailable is the new total minus what is already promised to customers
-                  productData.quantityAvailable = Math.max(0, newPhysicalQty - committedQuantity);
+              const committedQuantity = await getCommitedStock(Order, existingProduct._id);
+              const newPhysicalQty = quantity;
 
-                  // Prep data for diff comparison
-                  const currentData: any = existingProduct.toObject();
+              productData.quantityOnHand = newPhysicalQty;
+              productData.quantityAvailable = Math.max(0, newPhysicalQty - committedQuantity);
 
-                  // Normalize Category ID to string for clean diffing
-                  currentData.category = currentData.category?.toString();
+              // Convert to a plain object and cast to any to allow field overrides
+              const currentData: any = existingProduct.toObject();
 
-                  // Normalize incoming data for the target side of the diff
-                  const targetData = { ...productData, category: productData.category.toString() };
+              // Normalize the Category ID to a string for clean diffing
+              currentData.category = currentData.category?._id?.toString() || currentData.category?.toString();
 
-                  diff = detailedDiff(currentData, targetData) as IProductDiff;
+              // Prepare the target data
+              const targetData = { ...productData, category: productData.category.toString() };
 
-                  if (!isPreview) {
-                    existingProduct.set(productData);
-                    await existingProduct.save();
-                  }
-                }
-              } else {
-                status = 'created';
-                const newProduct = new Product(productData);
-                if (isPreview) {
-                  await newProduct.validate();
-                } else {
-                  await newProduct.save();
-                }
+              // Run the diff
+              diff = detailedDiff(currentData, targetData) as IProductDiff;
+
+              if (!isPreview) {
+                existingProduct.set(productData);
+                await existingProduct.save();
               }
-            } catch (err: any) {
-              status = 'error';
-              errorMessage = err.message;
+            } else {
+              status = 'created';
+              const newProduct = new Product(productData);
+              isPreview ? await newProduct.validate() : await newProduct.save();
             }
           }
-
-          // Update stats based on the final status
-          if (status === 'error') {
-            stats.errors++;
-          } else {
-            status === 'updated' ? stats.updated++ : stats.created++;
-          }
-
-          importResults.push({ ...row, status, diff, error: errorMessage });
+        } catch (err: any) {
+          // This only catches real system/DB errors (e.g. invalid JSON or DB timeout)
+          status = 'error';
+          errorMessage = err.message;
         }
-
-        // Cleanup
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
-
-        res.status(StatusCodes.OK).json({
-          message: isPreview ? "Preview completed successfully" : "Import completed successfully",
-          isPreview,
-          summary: stats,
-          results: importResults,
-        });
-      } catch (err) {
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
-        next(err);
       }
+
+      // Update stats and push result
+      if (status === 'error') {
+        stats.errors++;
+      } else {
+        status === 'updated' ? stats.updated++ : stats.created++;
+      }
+
+      importResults.push({ ...row, status, diff, error: errorMessage });
+    }
+
+    res.status(StatusCodes.OK).json({
+      message: isPreview ? "Preview completed successfully" : "Import completed successfully",
+      isPreview,
+      summary: stats,
+      results: importResults,
     });
+  } catch (err) {
+    next(err);
+  } finally {
+    // 3. GUARANTEED CLEANUP: Happens whether success or failure
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  }
 };
 
 /**

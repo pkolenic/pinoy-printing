@@ -1,4 +1,4 @@
-import express, { Request, Response, RequestHandler} from 'express';
+import express, { Request, Response, RequestHandler, NextFunction} from 'express';
 import request from 'supertest';
 import { StatusCodes } from "http-status-codes";
 
@@ -34,6 +34,17 @@ export function createValidationTester(rules: RequestHandler[], method: 'post' |
 
   return {
     // Return a function to easily send data to the test path
-    send: (data: object) => request(app)[method]('/test-validation').send(data)
+    send: (data: object) => request(app)[method]('/test-validation').send(data),
+    // Helper to simulate a request with a file attached
+    sendWithFile: (data: object, file: any) => {
+      const appWithFile = express();
+      appWithFile.use(express.json());
+      appWithFile[method]('/test-validation', (req: Request, _res: Response, next: NextFunction) => {
+        req.file = file; // Manually attach the mock file
+        next();
+      }, rules, (_req: Request, res: Response) => res.status(200).json({ message: 'Success' }));
+
+      return request(appWithFile)[method]('/test-validation').send(data);
+    }
   };
 }
