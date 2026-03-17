@@ -26,9 +26,12 @@ class RedisSingleton {
     this.client = createClient({ url });
 
     // Useful diagnostics
-    this.client.on('error', (err) => logger.error({message: 'Redis Error:', args: [err]}));
+    this.client.on('error', (err) => logger.error({ message: 'Redis Error:', args: [err] }));
     this.client.on('connect', () => logger.info({ message: 'Redis connected', color: logger.colors.SYSTEM_INFO }));
-    this.client.on('reconnecting', () => logger.info({ message: 'Redis reconnecting', color: logger.colors.SYSTEM_INFO }));
+    this.client.on('reconnecting', () => logger.info({
+      message: 'Redis reconnecting',
+      color: logger.colors.SYSTEM_INFO
+    }));
     this.client.on('end', () => {
       this._connectPromise = null;
       logger.info({ message: 'Redis disconnected', color: logger.colors.SYSTEM_INFO });
@@ -54,10 +57,10 @@ class RedisSingleton {
     await this.connect();
     const raw = await this.client.get(key);
     if (raw == null) {
-      logger.debug({ message: 'Cache miss:', color: logger.colors.SYSTEM_DEBUG, args: [key] });
+      logger.debug({ message: 'Cache miss:', color: logger.colors.SYSTEM_DEBUG, args: [{ key }] });
       return null;
     }
-    logger.debug({ message: 'Cache hit:', color: logger.colors.SYSTEM_DEBUG, args: [key] });
+    logger.debug({ message: 'Cache hit:', color: logger.colors.SYSTEM_DEBUG, args: [{ key }] });
     return options.parse ? options.parse(raw) : (raw as unknown as T);
   }
 
@@ -66,7 +69,11 @@ class RedisSingleton {
     const payload = options.serialize ? options.serialize(value) : (value as unknown as string);
 
     // Node-Redis v5 uses the same options object for TTL
-    logger.debug({ message: 'Cache write:', color: logger.colors.SYSTEM_DEBUG, args: [key, `(TTL:${options.ttlSeconds})`] });
+    logger.debug({
+      message: 'Cache write:',
+      color: logger.colors.SYSTEM_DEBUG,
+      args: [{ key }, { ttl: options.ttlSeconds }]
+    });
     return this.client.set(key, payload, options.ttlSeconds ? { EX: options.ttlSeconds } : undefined);
   }
 
@@ -101,7 +108,7 @@ class RedisSingleton {
         await this.client.close();
       }
     } catch (e: any) {
-      logger.error({ message: 'Error on Close',  args: [e] });
+      logger.error({ message: 'Error on Close', args: [e] });
     } finally {
       this._connectPromise = null;
     }
@@ -117,14 +124,18 @@ function wrap(singleton: RedisSingleton): RedisWrapper {
   return new Proxy(singleton, {
     get(target: any, prop: string | symbol, receiver: any) {
       // If it's a member on the wrapper (e.g., connect, getJSON), use it.
-      if (prop in target) return Reflect.get(target, prop, receiver);
+      if (prop in target) {
+        return Reflect.get(target, prop, receiver);
+      }
 
       // Otherwise, forward to the client after connecting.
       return async (...args: any[]) => {
         await target.connect();
         const member = target.client[prop];
         // Non-function properties are returned directly
-        if (typeof member !== 'function') return member;
+        if (typeof member !== 'function') {
+          return member;
+        }
         // Call the client method with provided args
         return member.apply(target.client, args);
       };
