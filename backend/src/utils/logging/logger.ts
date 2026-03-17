@@ -1,5 +1,6 @@
 import colors from 'colors';
 import { DEBUG, INFO, WARNING, ERRORS } from './index.js';
+import { assertExhaustive } from "../errors/asserts.js";
 
 // Define valid color names supported by the library
 export type ColorName = keyof colors.Color;
@@ -78,7 +79,7 @@ class Logger {
         level: severity,
         tenantId: tenantId,
         message: message,
-        data: args || []
+        data: args,
       };
       console[severity === 'error' ? 'error' : 'log'](JSON.stringify(logObject));
       return;
@@ -108,18 +109,31 @@ class Logger {
     const coloredArgString = (colors as any)[color as ColorName](argString);
 
     // 4. Log to the console based on the severity check and respecting the log level settings
-    if (severity === 'error') {
-      console.error(coloredMessage);
-      processedArgs.forEach(arg => {
-        const coloredArg = (colors as any)[color as ColorName](`\t${arg.trim()}`);
-        console.error(coloredArg);
-      });
-    } else if (severity === 'warn') {
-      console.warn(`${coloredMessage}${coloredArgString}`);
-    } else if (severity === 'info') {
-      console.info(`${coloredMessage}${coloredArgString}`);
-    } else if (severity === 'debug') {
-      console.debug(`${coloredMessage}${coloredArgString}`);
+    switch (severity) {
+      case 'error':
+        console.error(coloredMessage);
+        processedArgs.forEach(arg => {
+          const coloredArg = (colors as any)[color as ColorName](`\t${arg.trim()}`);
+          console.error(coloredArg);
+        });
+        break;
+
+      case 'warn':
+        console.warn(`${coloredMessage}${coloredArgString}`);
+        break;
+
+      case 'info':
+        console.info(`${coloredMessage}${coloredArgString}`);
+        break;
+
+      case 'debug':
+        console.debug(`${coloredMessage}${coloredArgString}`);
+        break;
+
+      /* v8 ignore start */
+      default:
+        return assertExhaustive(severity);
+      /* v8 ignore stop */
     }
   }
 
