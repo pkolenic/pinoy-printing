@@ -23,6 +23,7 @@
     "@mui/icons-material": "^7.3.7",
     "@mui/material": "^7.3.7",
     "@reduxjs/toolkit": "^2.6.1",
+    "@sindresorhus/slugify": "^3.0.0",
     "http-proxy-middleware": "^3.0.5",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
