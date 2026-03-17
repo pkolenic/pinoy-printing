@@ -77,7 +77,6 @@ export const createProduct: RequestHandler = async (req, res, next) => {
 /**
  * Gets a list of products
  * @route GET /api/products
- * @permission read:products / update:products
  * @filter {string} [search] - Search term to filter products by name
  * @filter {string} [category] - Parent Category to filter products by
  * @filter {number} [minPrice] - Minimum price to filter products by
