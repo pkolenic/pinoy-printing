@@ -15,7 +15,7 @@ import {
   resolveCategory,
 } from '../models/index.js'
 import { IImportResult, IProductDiff, IProductImportRow, } from "../types/requests/index.js";
-import { paginateResponse } from "../utils/paginationHelper.js";
+import { paginateResponse } from "../utils/pagination.js";
 import { buildSort, parsePagination } from "../utils/controllers/queryHelper.js";
 
 /**

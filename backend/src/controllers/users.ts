@@ -16,7 +16,7 @@ import {
 
 import { logger } from '../utils/logging/logger.js';
 import { AppError } from '../utils/errors/index.js';
-import { paginateResponse } from '../utils/paginationHelper.js';
+import { paginateResponse } from '../utils/pagination.js';
 import { buildSort, parsePagination } from "../utils/controllers/queryHelper.js";
 import { getTenantId } from "../utils/system.js";
 import { getTenantDb, SiteConfiguration } from "../services/db.js";

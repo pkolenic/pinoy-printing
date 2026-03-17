@@ -16,7 +16,7 @@ import {
   IUpdateCategoryRequest
 } from "../types/requests/index.js";
 
-import { paginateResponse } from "../utils/paginationHelper.js";
+import { paginateResponse } from "../utils/pagination.js";
 
 const CATEGORY_TREE_CACHE_KEY = 'category_tree';
 const CATEGORY_CACHE_TTL = 3600;
