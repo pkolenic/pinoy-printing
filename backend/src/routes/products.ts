@@ -34,13 +34,14 @@ const upload = multer({ dest: 'uploads/' });
 
 // ROUTES
 router.get('/import/template', guard('create:products'), getImportTemplate);
+
 router.get('/', guard(''), getProducts);
-router.post('/', guard('create:products'), createProductRules, createProduct)
+
+router.post('/', guard('create:products', createProductRules), createProduct)
+
 router.post(
   '/import',
-  guard('create:products'),
-  upload.single('file'),
-  importProductRules,
+  guard('create:products', [upload.single('file'), ...importProductRules]),
   importProducts,
 );
 
