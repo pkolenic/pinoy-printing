@@ -202,7 +202,10 @@ describe('Product Import Validation', () => {
 
   it('should fail and cleanup if the file reading encounters an error', async () => {
     const mockFile = { path: '/tmp/corrupt.csv', originalname: 'corrupt.csv' };
-    const mockStream = new Readable({ read() {} });
+    const mockStream = new Readable({
+      read() {
+      }
+    });
     mockStream.destroy = vi.fn();
 
     vi.spyOn(fs, 'existsSync').mockReturnValue(true);
@@ -309,5 +312,42 @@ describe('Product Import Validation', () => {
 
     // The Controller should handle cleaning up the file
     expect(fs.unlinkSync).not.toHaveBeenCalled();
+  });
+
+  it('should handle cleanup gracefully if the file no longer exists on disk', async () => {
+    const mockFile = { path: '/tmp/non-existent.txt', originalname: 'test.txt' };
+
+    // Force existsSync to return false
+    vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+
+    const response = await tester.sendWithFile({}, mockFile);
+
+    expect(response.status).toBe(StatusCodes.BAD_REQUEST);
+    // Verify that unlinkSync was NOT called because the if-check failed
+    expect(fs.unlinkSync).not.toHaveBeenCalled();
+  });
+
+  it('should fail if the CSV has a blank first line (value is empty string)', async () => {
+    const mockFile = { path: '/tmp/blank.csv', originalname: 'blank.csv' };
+
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    vi.spyOn(fs, 'createReadStream').mockReturnValue({ destroy: vi.fn() } as any);
+
+    vi.spyOn(readline, 'createInterface').mockReturnValue({
+      [Symbol.asyncIterator]: () => ({
+        // done is false (line found), but value is empty string
+        next: vi.fn().mockResolvedValue({ done: false, value: '' })
+      }),
+      close: vi.fn()
+    } as any);
+
+    const response = await tester.sendWithFile({}, mockFile);
+
+    expect(response.status).toBe(StatusCodes.BAD_REQUEST);
+    expect(response.body.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ msg: 'CSV file is empty' })
+      ])
+    );
   });
 });
