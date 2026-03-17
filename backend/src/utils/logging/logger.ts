@@ -8,6 +8,7 @@ interface LogOptions {
   message: string;
   color?: ColorName;
   args?: any[];
+  tenantId?: string;
 }
 
 class Logger {
@@ -53,6 +54,7 @@ class Logger {
       message,
       color = 'white',
       args = [],
+      tenantId = 'system',
     } = options;
 
     // 1. Determine if we should log based on the current level
@@ -72,10 +74,11 @@ class Logger {
     if (process.env.NODE_ENV === 'production') {
       // Structured JSON logging
       const logObject = {
-        timestamp: new Date().toISOString(),
+        timestamp: timestamp,
         level: severity,
-        message: options.message,
-        data: options.args || []
+        tenantId: tenantId,
+        message: message,
+        data: args || []
       };
       console[severity === 'error' ? 'error' : 'log'](JSON.stringify(logObject));
       return;

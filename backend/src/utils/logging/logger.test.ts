@@ -146,4 +146,28 @@ describe('Logger Class', () => {
     expect(json.level).toBe('info');
     expect(json.data).toContainEqual({ id: 1 });
   });
+
+  it('should include tenantId in JSON when req is provided', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('LOG_LEVEL', 'info');
+    Logger._resetInstance();
+    const activeLogger = Logger.getInstance();
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {
+    });
+
+    activeLogger.info({
+      message: 'Tenant Action',
+      tenantId: 'tenant_123',
+      args: [{ id: 1 }]
+    });
+
+    expect(logSpy).toHaveBeenCalled();
+
+    const json = JSON.parse(logSpy.mock.calls[0][0]);
+
+    expect(json.tenantId).toBe('tenant_123');
+    expect(json.message).toBe('Tenant Action');
+    expect(json.data).toContainEqual({ id: 1 });
+  });
 });
