@@ -24,24 +24,32 @@ export interface RouteDefinition {
  * Flattens an Express Router stack into a searchable array of route definitions.
  * Handles both simple routes and router.route() chains.
  */
-export const getRouteStack = (router: Router): RouteDefinition[] => {
-  return (router as any).stack.flatMap((layer: any) => {
-    const route = layer.route;
-    if (!route) {
-      return [];
+export const getRouteStack = (router: any, prefix = ''): any[] => {
+  if (!router || !router.stack) {
+    return [];
+  }
+
+  return router.stack.flatMap((layer: any) => {
+    // 1. If it's a route (like .get, .post, .route)
+    if (layer.route) {
+      // Clean up the path to ensure it looks like /path/subpath
+      const fullPath = (prefix + '/' + layer.route.path).replace(/\/+/g, '/');
+      const methods = Object.keys(layer.route.methods);
+
+      return methods.map((method) => {
+        const middleware = layer.route.stack
+          .map((s: any) => s.name || s.handle.name || 'anonymous');
+        return { path: fullPath, method, middleware };
+      });
     }
 
-    const path = route.path;
-    // Get all methods registered for this path (get, post, delete, etc.)
-    const methods = Object.keys(route.methods);
+    // 2. If it's a nested router (router.use)
+    if (layer.name === 'router' && layer.handle) {
+      // Look for a mountPath property on the layer, or use the path in case Express populated it from a simple string
+      const mountPath = layer.handle.mountPath || layer.path || '';
+      return getRouteStack(layer.handle, prefix + mountPath);
+    }
 
-    return methods.map((method) => {
-      // For each method, find all middleware associated with it in the route's stack
-      const middleware = route.stack
-        .filter((s: any) => s.method === method || !s.method)
-        .map((s: any) => s.name || s.handle.name || 'anonymous');
-
-      return { path, method, middleware };
-    });
+    return [];
   });
 };
