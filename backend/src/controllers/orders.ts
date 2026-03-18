@@ -151,8 +151,34 @@ export const getOrder: RequestHandler = async (req, res, next) => {
  * @route PUT /api/orders/:orderId
  */
 export const updateOrder: RequestHandler = async (req, res, next) => {
-  const { Order } = req.tenantModels;
-  const { orderId } = req.params;
+  try {
+    // const { Order } = req.tenantModels;
+    const { order } = req; // Attached by guardedResource
+    // const { tenantConfig } = req; // Attached by your tenant middleware
+
+    if (!order) {
+      return next(new AppError('Order not found', StatusCodes.NOT_FOUND));
+    }
+
+    const updates = req.body;
+
+    // 1. Logic Check: Can items be updated?
+    // if (updates.items && !tenantConfig.allowOrderEditing) {
+    //   return next(new AppError('This site does not allow modifying items once an order is placed', StatusCodes.FORBIDDEN));
+    // }
+
+    // 2. Apply Updates
+    // We use Object.assign to trigger Mongoose setters/virtuals if needed
+    Object.assign(order, updates);
+
+    // 3. Save (This will trigger your 'orderTotal' virtual recalculation if items are changed)
+    await order.save();
+
+    res.status(StatusCodes.OK).json(order);
+  } catch (error: any) {
+    const message = error instanceof Error ? error.message : 'Internal Server Error';
+    next(new AppError(message, StatusCodes.INTERNAL_SERVER_ERROR));
+  }
 }
 
 /**
@@ -183,17 +209,17 @@ export const getOrders: RequestHandler = async (req, res, next) => {
   const { Order } = req.tenantModels;
   const { limit, page, skip } = parsePagination(req);
 
-   // Build Query
-    type queryType = {
-      search?: string,
-      status?: string,
-      date?: Date,
-      shipped?: Date,
-      paid?: Date,
-      sortBy?: string
-    };
-    const query: FilterQuery<IProduct> = {};
-    const { search, status, date, shipped, paid, sortBy } = req.query as queryType
+  // Build Query
+  type queryType = {
+    search?: string,
+    status?: string,
+    date?: Date,
+    shipped?: Date,
+    paid?: Date,
+    sortBy?: string
+  };
+  const query: FilterQuery<IProduct> = {};
+  const { search, status, date, shipped, paid, sortBy } = req.query as queryType
 }
 
 /**
@@ -202,8 +228,8 @@ export const getOrders: RequestHandler = async (req, res, next) => {
  * @permission read:orders
  */
 export const getUserOrders: RequestHandler = async (req, res, next) => {
-   // TODO: Implement pagination and filtering
-   const { Order } = req.tenantModels;
-   const { userId } = req.params;
-   const { limit, page, skip } = parsePagination(req);
+  // TODO: Implement pagination and filtering
+  const { Order } = req.tenantModels;
+  const { userId } = req.params;
+  const { limit, page, skip } = parsePagination(req);
 }
