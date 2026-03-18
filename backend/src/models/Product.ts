@@ -1,10 +1,10 @@
-import mongoose, {
+import {
   Schema,
   HydratedDocument,
   Model,
   Types,
 } from "mongoose";
-import { ICategory, ICategoryDocument } from "./Category.js";
+import { ICategory } from "./Category.js";
 
 /**
  * Define the Interface for the Product Document.
@@ -28,7 +28,9 @@ export interface IProduct {
  * Hydrated type for Mongoose Documents
  * Use this for "this" in Schema methods/hooks and Model definitions.
  */
-export type IProductDocument = HydratedDocument<IProduct>;
+export type IProductDocument = HydratedDocument<IProduct> & {
+  categoryName: string | null;
+};
 
 // Define the Model type for use in static contexts
 type ProductModel = Model<IProduct>;
