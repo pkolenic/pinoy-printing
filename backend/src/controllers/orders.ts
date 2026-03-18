@@ -5,12 +5,13 @@ import {
   IOrderDocument,
   IOrderItem,
   AddressSubdocument,
-  IAddress,
+  IAddress, IProduct,
 } from "../models/index.js";
 import { ICreateOrderRequest } from "../types/requests/index.js";
 
 import { AppError } from '../utils/errors/index.js';
-import mongoose from "mongoose";
+import mongoose, { FilterQuery } from "mongoose";
+import { parsePagination } from "../utils/controllers/queryHelper.js";
 
 /**
  * Create a new order
@@ -135,3 +136,74 @@ export const createOrder: RequestHandler = async (req, res, next) => {
     await session.endSession();
   }
 };
+
+/**
+ * Get a single order by ID
+ * @route GET /api/orders/:orderId
+ */
+export const getOrder: RequestHandler = async (req, res, next) => {
+  const { Order } = req.tenantModels;
+  const { orderId } = req.params;
+}
+
+/**
+ * Update an order by ID
+ * @route PUT /api/orders/:orderId
+ */
+export const updateOrder: RequestHandler = async (req, res, next) => {
+  const { Order } = req.tenantModels;
+  const { orderId } = req.params;
+}
+
+/**
+ * Delete an order by ID
+ * @param req
+ * @param res
+ * @param next
+ */
+export const deleteOrder: RequestHandler = async (req, res, next) => {
+  const { Order } = req.tenantModels;
+  const { orderId } = req.params;
+}
+
+/**
+ * Get all orders
+ * @route GET /api/orders
+ * @filter {string} [search] - Search term to filter order by customer name, email, or phone
+ * @filter {string} [status] - Filter by order status (e.g., 'pending', 'shipped', 'delivered')
+ * @filter {string} [date] - Filter by order date (YYYY-MM-DD)
+ * @filter {string} [shipped] - Filter by ship date (YYYY-MM-DD)
+ * @filter {string} [paid] - Filter by paid date (YYYY-MM-DD)
+ * @filter {string} [sortBy=customer] - Sort products by a specific field (e.g., customer, status)
+ * @filter {number} [page=1] - Page number
+ * @filter {number} [limit=10] - Number of orders per page
+ */
+export const getOrders: RequestHandler = async (req, res, next) => {
+  // TODO: Implement pagination and filtering
+  const { Order } = req.tenantModels;
+  const { limit, page, skip } = parsePagination(req);
+
+   // Build Query
+    type queryType = {
+      search?: string,
+      status?: string,
+      date?: Date,
+      shipped?: Date,
+      paid?: Date,
+      sortBy?: string
+    };
+    const query: FilterQuery<IProduct> = {};
+    const { search, status, date, shipped, paid, sortBy } = req.query as queryType
+}
+
+/**
+ * Get all orders for a specific user
+ * @route GET /api/orders/:userId
+ * @permission read:orders
+ */
+export const getUserOrders: RequestHandler = async (req, res, next) => {
+   // TODO: Implement pagination and filtering
+   const { Order } = req.tenantModels;
+   const { userId } = req.params;
+   const { limit, page, skip } = parsePagination(req);
+}
