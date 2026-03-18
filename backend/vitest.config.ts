@@ -7,8 +7,10 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'], // Path to your global test setup
     include: ['**/*.test.ts'],
     coverage: {
+      enabled: true,
+      reportOnFailure: true,
       provider: 'v8', // or 'istanbul'
-      reporter: ['text', 'json', 'html'],
+      reporter: ['text','lcov', 'json', 'html'],
       include: ['src/**/*.ts'], // Recommended to limit scope
       exclude: [
         'src/test/**',        // Excludes the entire test folder - contains testing utilities
