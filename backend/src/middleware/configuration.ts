@@ -1,4 +1,4 @@
-import { RequestHandler } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { StatusCodes } from "http-status-codes";
 import { AppError } from "../utils/errors/index.js";
 import redis from '../services/redis.js';
@@ -9,7 +9,7 @@ import { getTenantDb, SiteConfiguration, } from "../services/db.js";
 import { getTenantModels } from "../types/tenantContext.js";
 
 
-const getSiteConfiguration = async (tenantId: string): Promise<ISiteConfigurationDocument> => {
+export const getSiteConfiguration = async (tenantId: string): Promise<ISiteConfigurationDocument> => {
   let siteConfig = await redis.getJSON(`site-config:${tenantId}`) as ISiteConfigurationDocument;
 
   // On a cache miss, fetch from the database
@@ -79,7 +79,7 @@ const getSiteConfiguration = async (tenantId: string): Promise<ISiteConfiguratio
   return siteConfig;
 }
 
-export const configurationMiddleware: RequestHandler = async (req, _res, next) => {
+export const configurationMiddleware = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
   try {
     const tenantId = getTenantId(req);
 
