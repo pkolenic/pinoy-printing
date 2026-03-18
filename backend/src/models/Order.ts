@@ -38,7 +38,10 @@ export interface IOrderMethods {
  */
 export type IOrderDocument = HydratedDocument<
   IOrder,
-  IOrderMethods & { items: Types.DocumentArray<OrderItemSubdocument> }
+  IOrderMethods & {
+  items: Types.DocumentArray<OrderItemSubdocument>
+  orderTotal: number;
+}
 >;
 
 /**
