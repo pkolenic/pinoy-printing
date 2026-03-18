@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { checkPermissions } from './permissions.js';
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { AppError } from '../utils/errors';
-
+import {
+  checkPermissions,
+  verifyRelationship,
+} from './permissions.js';
 
 describe('checkPermissions Middleware', () => {
   let mockReq: any;
@@ -160,7 +162,6 @@ describe('checkPermissions Middleware', () => {
     expect(error.message).toBe('Internal Server Error');
   });
 
-
   it('should return Forbidden if req.auth is missing (e.g., jwtCheck skipped)', async () => {
     // Simulate a request where the authentication middleware was never run
     delete mockReq.auth;
@@ -184,5 +185,53 @@ describe('checkPermissions Middleware', () => {
 
     const error = next.mock.calls[0][0];
     expect(error.statusCode).toBe(StatusCodes.FORBIDDEN);
+  });
+});
+
+describe('verifyRelationship Middleware', () => {
+  let req: any, res: any, next: any;
+
+  beforeEach(() => {
+    res = {};
+    next = vi.fn();
+    req = {
+      params: { userId: 'user_123' },
+      order: { userId: 'user_123' } // Matching
+    };
+  });
+
+  it('should call next() if the resource field matches the param value', () => {
+    const middleware = verifyRelationship('order', 'userId', 'userId');
+    middleware(req, res, next);
+    expect(next).toHaveBeenCalledWith();
+  });
+
+  it('should throw 403 Forbidden if the IDs do not match', () => {
+    req.order.userId = 'attacker_id';
+    const middleware = verifyRelationship('order', 'userId', 'userId');
+    middleware(req, res, next);
+
+    const error = next.mock.calls[0][0];
+    expect(error).toBeInstanceOf(AppError);
+    expect(error.statusCode).toBe(StatusCodes.FORBIDDEN);
+    expect(error.message).toContain('does not belong to this user');
+  });
+
+  it('should handle Mongoose ObjectIDs by converting to strings', () => {
+    // Simulate Mongoose objects that aren't strict strings
+    req.params.userId = '507f1f77bcf86cd799439011';
+    req.order.userId = { toString: () => '507f1f77bcf86cd799439011' };
+
+    const middleware = verifyRelationship('order', 'userId', 'userId');
+    middleware(req, res, next);
+    expect(next).toHaveBeenCalledWith();
+  });
+
+  it('should throw 404 if the resource is missing from the request', () => {
+    delete req.order;
+    const middleware = verifyRelationship('order', 'userId', 'userId');
+    middleware(req, res, next);
+
+    expect(next.mock.calls[0][0].statusCode).toBe(StatusCodes.NOT_FOUND);
   });
 });

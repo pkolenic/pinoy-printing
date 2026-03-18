@@ -55,3 +55,31 @@ export const checkPermissions = (requiredPermission: string, isSelf: boolean = f
     return next(new AppError('Forbidden: Not Authorized', StatusCodes.FORBIDDEN));
   };
 };
+
+/**
+ * Ensures a resource on req[resourceKey] has a field that matches a value in req.params[paramName].
+ * Example: verifyRelationship('order', 'userId', 'userId')
+ * checks if req.order.userId === req.params.userId
+ */
+export const verifyRelationship = (
+  resourceKey: string,
+  resourceField: string,
+  paramName: string
+) => {
+  return (req: Request, _res: Response, next: NextFunction) => {
+    const resource = (req as any)[resourceKey];
+    const paramValue = req.params[paramName];
+
+    if (!resource) {
+      return next(new AppError(`${resourceKey} not found`, StatusCodes.NOT_FOUND));
+    }
+
+    // Check if the resource's owner field matches the ID in the URL
+    // We convert to string to handle Mongoose ObjectIDs vs Strings
+    if (String(resource[resourceField]) !== String(paramValue)) {
+      return next(new AppError(`Forbidden: This ${resourceKey} does not belong to this user.`, StatusCodes.FORBIDDEN));
+    }
+
+    next();
+  };
+};

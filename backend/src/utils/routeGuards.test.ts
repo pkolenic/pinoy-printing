@@ -6,9 +6,15 @@ vi.mock('../middleware/index.js', () => ({
   jwtCheck: { name: 'jwtCheck' }, // Mocking as an object to identify it easily
   checkPermissions: vi.fn((perm, isSelf) => ({ name: 'checkPermissions', perm, isSelf })),
   createAttachMiddleware: vi.fn((model, param, key) => ({ name: 'attach', model, param, key })),
+  verifyRelationship: vi.fn((key, field, param) => ({ name: 'verifyRelationship', key, field, param })),
 }));
 
-import { checkPermissions, createAttachMiddleware, jwtCheck } from '../middleware';
+import {
+  checkPermissions,
+  createAttachMiddleware,
+  jwtCheck,
+  verifyRelationship,
+} from '../middleware';
 
 describe('Route Guards Utility', () => {
   const guards = createRouteGuards<'read' | 'write', 'Category'>(
@@ -108,6 +114,26 @@ describe('Route Guards Utility', () => {
 
       expect(result[3].name).toBe('attach');
       expect(result[3].model).toBe('User');
+    });
+  });
+
+  describe('guardedRelationship', () => {
+    it('should assemble jwt, permissions, attachment, and relationship check', () => {
+      const result = guards.guardedRelationship('read', 'userId');
+
+      // Index 0: jwt, 1: perm, 2: attach, 3: relationship
+      expect(result).toHaveLength(4);
+      expect(verifyRelationship).toHaveBeenCalledWith('category', 'userId', 'id');
+      expect(result[3]).toEqual(verifyRelationship('category', 'userId', 'id'));
+    });
+
+    it('should include custom rules before the attachment/relationship logic', () => {
+      const rule = { name: 'rule' } as any;
+      const result = guards.guardedRelationship('write', 'ownerId', [rule]);
+
+      // jwt, perm, rule, attach, relationship = 5
+      expect(result).toHaveLength(5);
+      expect(result[2]).toBe(rule);
     });
   });
 });
