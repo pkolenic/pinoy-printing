@@ -216,10 +216,13 @@ export async function resolveCategory(Category: Model<ICategory>, input: string)
     return null;
   }
 
-  // Normalize the path: lowercase, split by delimiters, filter out empties, join with /
-  const path = value.toLowerCase()
+  // 1. Split by common delimiters
+  // 2. Slugify each individual segment (handling spaces/special chars)
+  // 3. Join back into a standard path
+  const path = value
     .split(/\s*[>\/+]\s*/)
-    .filter(Boolean) // Prevents empty segments from "Parent // Child"
+    .filter(Boolean)
+    .map(segment => slugify(segment, { decamelize: false })) // Added this!
     .join('/');
 
   // Check if it's a valid MongoDB ObjectId Format
