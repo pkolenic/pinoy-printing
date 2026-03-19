@@ -17,9 +17,6 @@ export const USER_ROLE_IDS: Record<UserRole, string | undefined> = {
   staff: process.env.AUTH0_STAFF_ROLE_ID,
 }
 
-// Singleton instance of the Auth0 Management Client
-let clientInstance: ManagementClient | null = null;
-
 // Cache for tenant-specific Auth0 clients
 const clientCache = new Map<string, ManagementClient>();
 
@@ -82,7 +79,7 @@ export async function clearAuth0Cache(): Promise<void> {
 export function getRoleId(role: UserRole): string {
   const roleId = USER_ROLE_IDS[role];
   if (!roleId) {
-    throw new AppError(`Auth0 Role ID not found for role: ${role}`, 500);
+    throw new AppError(`Auth0 Role ID not found for role: ${role}`, StatusCodes.INTERNAL_SERVER_ERROR);
   }
   return roleId;
 }
