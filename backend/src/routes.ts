@@ -6,7 +6,9 @@ import { configurationMiddleware } from './middleware/index.js';
 import {
   getIndex,
   getFavicon,
+  getWellKnownNotFound,
 } from "./controllers/static.js";
+import { mountRoute } from './utils/routes.js';
 
 const router: Router = Router();
 
@@ -14,8 +16,8 @@ const router: Router = Router();
 router.use(configurationMiddleware);
 
 // Mount sub-routers
-router.use('/api', apiRoutes);
-router.use('/site', siteRoutes);
+mountRoute(router, '/api', apiRoutes);
+mountRoute(router, '/site', siteRoutes);
 
 /**
  * Static Folder Middleware
@@ -23,12 +25,13 @@ router.use('/site', siteRoutes);
  */
 router.use(express.static(PUBLIC_DIR, { index: false }));
 
-// Silently 404 well-known files without triggering the fallback or error logger
-router.get('/.well-known/*path', (_req, res) => res.status(404).end());
+// Silently 404 well-known files
+router.get('/.well-known/*path', getWellKnownNotFound);
 
-// GET favicon.ico and other static thumbnail images
+// GET favicon and icons
 router.get(['/favicon.ico', '/apple-touch-icon.png', 'apple-touch-icon-precomposed.png'], getFavicon);
 
 // And a fallback for React Router:
 router.get('*path', getIndex);
+
 export default router;

@@ -40,3 +40,11 @@ export const getFavicon: RequestHandler = async (req, res, next) => {
     next(error);
   }
 }
+
+/**
+ * Named handler to silently 404 well-known requests.
+ * Named specifically for route stack verification in tests.
+ */
+export const getWellKnownNotFound: RequestHandler = (_req, res) => {
+  res.status(StatusCodes.NOT_FOUND).end();
+};
