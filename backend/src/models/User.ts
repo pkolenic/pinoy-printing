@@ -17,7 +17,7 @@ export interface IUser {
   username: string;
   sub: string;
   email: string;
-  phone?: string;
+  phone?: string; // Need to use Strategy Design Pattern to handle phone number verification
   addresses: IAddress[];
   primaryAddressId?: Types.ObjectId;
   role: 'customer' | 'staff' | 'owner' | 'admin';

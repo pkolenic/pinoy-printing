@@ -14,6 +14,7 @@ export interface IAddress {
   postalCode: string;
   _isPrimaryInput?: boolean; // Transient input field
 }
+// TODO - Need to use the Strategy design pattern to handle Address validation
 
 /**
  * Hydrated Subdocument Type
