@@ -1,5 +1,7 @@
 import { createClient, SetOptions } from "redis";
 import { logger } from '../utils/logging/index.js';
+import { AppError } from "../utils/errors/index.js";
+import { StatusCodes } from "http-status-codes";
 
 // Derived type for the Redis client
 export type RedisClient = ReturnType<typeof createClient>;
@@ -112,15 +114,20 @@ export const getTenantRedis = async (tenantId: string, url?: string): Promise<Te
   let client = connectionPools.get(targetUrl);
 
   if (!client) {
-    client = createClient({ url: targetUrl });
-    client.on('error', (err) => logger.error({
-      message: `Redis Connection Error [${targetUrl}]:`,
-      tenantId,
-      args: [err]
-    }));
+    try {
+      client = createClient({ url: targetUrl });
+      client.on('error', (err) => logger.error({
+        message: `Redis Connection Error [${targetUrl}]:`,
+        tenantId,
+        args: [err]
+      }));
 
-    await client.connect();
-    connectionPools.set(targetUrl, client);
+      await client.connect();
+      connectionPools.set(targetUrl, client);
+    } catch (error) {
+      // Log and re-throw as an AppError so your global error handler can catch it
+      throw new AppError(`Failed to connect to Redis for tenant ${tenantId}`, StatusCodes.INTERNAL_SERVER_ERROR);
+    }
   }
 
   // Return a new wrapper instance using the client from the pool
