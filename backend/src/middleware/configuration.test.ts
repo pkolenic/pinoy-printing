@@ -16,9 +16,13 @@ vi.mock('../services/redis.js', async () => {
 
 vi.mock('../services/db.js', () => ({
   SiteConfiguration: {
-    findOne: vi.fn().mockImplementation(() => Promise.resolve(null)),
+    findOne: vi.fn().mockResolvedValue(null),
   },
-  getTenantDb: vi.fn().mockReturnValue({}),
+  // Must be async (mockResolvedValue) to match signature
+  getTenantDb: vi.fn().mockResolvedValue({
+    model: vi.fn(),
+    readyState: 1
+  }),
 }));
 
 vi.mock('../services/tenantRedis.js', () => ({
@@ -90,7 +94,7 @@ describe('Configuration Logic', () => {
     it('should attach configuration and models to the request', async () => {
       const mockConfig = {
         backend: {
-          database: { name: 'tenant-db' },
+          database: { name: 'tenant-db', url: 'mongodb://tenant-cluster' },
           redis: { url: 'redis://tenant' }
         }
       };
@@ -99,33 +103,51 @@ describe('Configuration Logic', () => {
       await configurationMiddleware(req as Request, res as Response, next);
 
       expect(req.tenantConfig).toEqual(mockConfig);
-      expect(getTenantDb).toHaveBeenCalledWith('tenant-db');
+      expect(getTenantDb).toHaveBeenCalledWith(mockConfig);
       expect(next).toHaveBeenCalledWith();
     });
 
-    it('should fallback to "default" database name if tenantConfig.backend.database.name is missing', async () => {
-      // Mock a configuration where the database name is undefined
-      const configWithNoDbName = {
+    it('should return an AppError to next if the database configuration is incomplete', async () => {
+      const incompleteConfig = {
         backend: {
           database: {
-            // name is missing here
             url: 'mongodb://localhost:27017'
-          },
-          redis: { url: 'redis://localhost:6379' }
+            // 'name' is missing
+          }
         }
       };
 
-      // 1. Mock getTenantId to succeed
-      vi.mocked(systemUtils.getTenantId).mockReturnValue('test-tenant');
-
-      // 2. Mock Redis to return the config with the missing DB name
-      vi.mocked(redis.getJSON).mockResolvedValue(configWithNoDbName);
+      vi.mocked(redis.getJSON).mockResolvedValue(incompleteConfig);
 
       await configurationMiddleware(req as Request, res as Response, next);
 
-      // 3. Verify getTenantDb was called with the fallback 'default' string
-      expect(getTenantDb).toHaveBeenCalledWith('default');
-      expect(next).toHaveBeenCalledWith();
+      // 1. Verify getTenantDb was NEVER called (The guard worked)
+      expect(getTenantDb).not.toHaveBeenCalled();
+
+      // 2. Verify the error was passed to next
+      const passedError = next.mock.calls[0][0];
+      expect(passedError).toBeInstanceOf(AppError);
+      expect(passedError.message).toContain('Database configuration (name or url) missing');
+      expect(passedError.statusCode).toBe(StatusCodes.INTERNAL_SERVER_ERROR);
+    });
+
+    it('should fallback to an empty object if backend.database is missing and throw 500', async () => {
+      // 1. Mock a config missing the 'backend' property entirely
+      const emptyConfig = {
+        tenantId: 'empty-tenant',
+        // backend: undefined (this triggers the fallback)
+      };
+
+      vi.mocked(redis.getJSON).mockResolvedValue(emptyConfig);
+
+      // 2. Execute the middleware
+      await configurationMiddleware(req as Request, res as Response, next);
+
+      // 3. Verify the logic:
+      const passedError = next.mock.calls[0][0];
+      expect(passedError).toBeInstanceOf(AppError);
+      expect(passedError.statusCode).toBe(StatusCodes.INTERNAL_SERVER_ERROR);
+      expect(passedError.message).toContain('Database configuration (name or url) missing');
     });
 
     it('should catch AppErrors and pass them directly to next', async () => {

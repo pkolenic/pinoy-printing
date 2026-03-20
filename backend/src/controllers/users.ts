@@ -118,7 +118,7 @@ export const syncUser: RequestHandler = async (req, res, next) => {
   if (!siteConfig) {
     return next(new AppError('Invalid Tenant', StatusCodes.BAD_REQUEST));
   }
-  const tenantDb = getTenantDb(siteConfig?.backend?.database?.name || 'default');
+  const tenantDb = await getTenantDb(siteConfig);
   const tenantModels = getTenantModels(tenantDb);
   const User = tenantModels.User;
   const role = 'customer';

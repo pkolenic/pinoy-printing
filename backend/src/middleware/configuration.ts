@@ -86,8 +86,17 @@ export const configurationMiddleware = async (req: Request, _res: Response, next
     let tenantConfig = await getSiteConfiguration(tenantId);
     req.tenantConfig = tenantConfig;
 
+    const { name: dbName, url: tenantUrl } = tenantConfig.backend?.database || {};
+    // Explicit validation before calling services
+    if (!dbName || !tenantUrl) {
+      return next(new AppError(
+        `Database configuration (name or url) missing for tenant: ${tenantId}`,
+        StatusCodes.INTERNAL_SERVER_ERROR
+      ));
+    }
+
     // getTenantDb returns the connection (cached internally)
-    const tenantDb = getTenantDb(tenantConfig?.backend?.database?.name || 'default');
+    const tenantDb = await getTenantDb(tenantConfig);
     req.tenantModels = getTenantModels(tenantDb);
 
     // Attach the tenant redis to the request object
