@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { StatusCodes } from "http-status-codes";
 import { AppError } from "../utils/errors/index.js";
-import redis from '../services/redis.js';
+import Redis from '../services/redis.js';
 import { getTenantRedis } from "../services/tenantRedis.js";
 import { getEnv, getTenantId } from "../utils/system.js";
 import { ISiteConfigurationDocument } from "../models/index.js";
@@ -10,6 +10,7 @@ import { getTenantModels } from "../types/tenantContext.js";
 
 
 export const getSiteConfiguration = async (tenantId: string): Promise<ISiteConfigurationDocument> => {
+  const redis = await Redis.getInstance();
   let siteConfig = await redis.getJSON(`site-config:${tenantId}`) as ISiteConfigurationDocument;
 
   // On a cache miss, fetch from the database

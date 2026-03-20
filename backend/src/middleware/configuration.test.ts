@@ -3,18 +3,16 @@ import { StatusCodes } from 'http-status-codes';
 import { Request, Response } from 'express';
 
 import { getSiteConfiguration, configurationMiddleware } from './configuration';
-import redis from '../services/redis.js';
 import { SiteConfiguration, getTenantDb } from '../services/db.js';
 import * as systemUtils from '../utils/system.js';
 import { AppError } from '../utils/errors';
+import { mockRedisInstance as redis } from '../test/mocks/services/redis';
 
 // 1. Setup Mocks with explicit Promise returns
-vi.mock('../services/redis.js', () => ({
-  default: {
-    getJSON: vi.fn().mockImplementation(() => Promise.resolve(null)),
-    setJSON: vi.fn().mockImplementation(() => Promise.resolve()),
-  }
-}));
+vi.mock('../services/redis.js', async () => {
+  const mod = await import('../test/mocks/services/redis');
+  return mod.redisMockFactory();
+});
 
 vi.mock('../services/db.js', () => ({
   SiteConfiguration: {
@@ -49,7 +47,6 @@ describe('Configuration Logic', () => {
     it('should return data from Redis on a cache hit', async () => {
       const mockConfig = { frontend: { site: { name: 'Cached Site' } } };
       vi.mocked(redis.getJSON).mockResolvedValue(mockConfig);
-
       const result = await getSiteConfiguration(tenantId);
 
       expect(result).toEqual(mockConfig);

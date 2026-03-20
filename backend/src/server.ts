@@ -9,7 +9,7 @@ import {
   notFoundHandler,
 } from "./middleware/index.js";
 import { closeAllRedis } from "./services/tenantRedis.js";
-import redis from './services/redis.js';
+import Redis from './services/redis.js';
 
 import routes from './routes.js';
 import { logger as systemLogger } from './utils/logging/index.js';
@@ -22,7 +22,7 @@ try {
   // Concurrent startup for performance
   await Promise.all([
     connectDB(),
-    redis.connect()
+    Redis.connect(),
   ]);
 } catch (err) {
   systemLogger.error({
@@ -92,7 +92,7 @@ async function gracefulShutdown(signal: string): Promise<void> {
     try {
       // 2) Close external services concurrently
       await Promise.all([
-        redis.close(),
+        Redis.disconnect(),
         closeAllRedis(),
         disconnectDB(),
         clearAuth0Cache()
