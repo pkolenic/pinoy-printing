@@ -15,8 +15,6 @@ export const getSiteConfiguration = async (tenantId: string): Promise<ISiteConfi
   // On a cache miss, fetch from the database
   if (!siteConfig) {
     siteConfig = await SiteConfiguration.findOne({ tenantId }) as ISiteConfigurationDocument;
-    await redis.setJSON(`site-config:${tenantId}`, siteConfig, 60 * 10); // Cache for 10 minutes - TODO - once we can edit configurations in the dashboard remove the ttl
-
     if (!siteConfig) {
       // Hydrate the siteConfig using the default values
       siteConfig = {
@@ -73,8 +71,8 @@ export const getSiteConfiguration = async (tenantId: string): Promise<ISiteConfi
           },
         },
       } as ISiteConfigurationDocument;
-      await redis.setJSON(`site-config:${tenantId}`, siteConfig, 60 * 10); // Cache for 10 minutes - TODO - once we can edit configurations in the dashboard remove the ttl
     }
+    await redis.setJSON(`site-config:${tenantId}`, siteConfig, 60 * 10); // Cache for 10 minutes - TODO - once we can edit configurations in the dashboard remove the ttl
   }
   return siteConfig;
 }

@@ -75,7 +75,7 @@ describe('Configuration Logic', () => {
       const result = await getSiteConfiguration(tenantId);
 
       expect(result.frontend.site.name).toBe('Test E-Commerce Site');
-      expect(redis.setJSON).toHaveBeenCalledTimes(2);
+      expect(redis.setJSON).toHaveBeenCalledTimes(1);
     });
   });
 
