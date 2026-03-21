@@ -13,30 +13,12 @@ import {
   getCommitedStock,
   IProduct,
   resolveCategory,
+  sanitizeProduct,
 } from '../models/index.js'
 import { IImportResult, IProductDiff, IProductImportRow, } from "../types/requests/index.js";
 import { paginateResponse } from "../utils/pagination.js";
 import { buildSort, parsePagination } from "../utils/controllers/queryHelper.js";
 
-/**
- * Sanitizes product data based on user permissions
- */
-const sanitizeProduct = (product: IProduct, isStaff: boolean): IProduct => {
-  // Create a base object that ensures customizationSchema is at least set null
-  const baseProduct = {
-    ...product,
-    customizationSchema: product.customizationSchema ?? null,
-  };
-
-  if (isStaff) {
-    return baseProduct as IProduct;
-  }
-
-  // For non-staff, exclude sensitive fields
-  const { quantityAvailable, quantityOnHand, showIfOutOfStock, ...publicProduct } = baseProduct;
-
-  return publicProduct as IProduct;
-};
 
 /**
  * Creates a new product

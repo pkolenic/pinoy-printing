@@ -101,3 +101,23 @@ export const ProductSchema = new Schema<IProduct, ProductModel>({
 ProductSchema.virtual('categoryName').get(function (this: IProductDocument) {
   return (this.category as any)?.name || null;
 });
+
+/**
+ * Sanitizes product data based on user permissions
+ */
+export const sanitizeProduct = (product: IProduct, isStaff: boolean): IProduct => {
+  // Create a base object that ensures customizationSchema is at least set null
+  const baseProduct = {
+    ...product,
+    customizationSchema: product.customizationSchema ?? null,
+  };
+
+  if (isStaff) {
+    return baseProduct as IProduct;
+  }
+
+  // For non-staff, exclude sensitive fields
+  const { quantityAvailable, quantityOnHand, showIfOutOfStock, ...publicProduct } = baseProduct;
+
+  return publicProduct as IProduct;
+};
