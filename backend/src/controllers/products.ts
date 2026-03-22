@@ -1,11 +1,10 @@
-import { RequestHandler } from "express";
 import { FilterQuery } from 'mongoose';
 import { StatusCodes } from "http-status-codes";
 import { matchedData } from 'express-validator';
 import { detailedDiff } from 'deep-object-diff';
 import fs from 'fs';
 import csv from 'csv-parser';
-
+import { AsyncRequestHandler } from "../utils/request.js";
 import { AppError } from '../utils/errors/index.js';
 import {
   CSV_PRODUCT_HEADERS,
@@ -25,7 +24,7 @@ import { buildSort, parsePagination } from "../utils/controllers/queryHelper.js"
  * @route POST /api/products
  * @permission create:products
  */
-export const createProduct: RequestHandler = async (req, res, next) => {
+export const createProduct: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { Product } = req.tenantModels;
     const { image, quantity = 0, ...data } = matchedData(req);
@@ -68,7 +67,7 @@ export const createProduct: RequestHandler = async (req, res, next) => {
  * @filter {number} [page=1] - Page number
  * @filter {number} [limit=10] - Number of products per page
  */
-export const getProducts: RequestHandler = async (req, res, next) => {
+export const getProducts: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { Category, Product } = req.tenantModels;
     const { limit, page, skip } = parsePagination(req);
@@ -91,7 +90,8 @@ export const getProducts: RequestHandler = async (req, res, next) => {
       const categoryIds = await getRelatedCategoryIds(Category, category);
       if (categoryIds.length === 0) {
         // If slug provided but category doesn't exist, return empty early'
-        return res.status(200).json(paginateResponse(req, [], 0, page, limit));
+        res.status(200).json(paginateResponse(req, [], 0, page, limit));
+        return;
       }
       query.category = { $in: categoryIds };
     }
@@ -132,7 +132,7 @@ export const getProducts: RequestHandler = async (req, res, next) => {
  * @route GET /api/products/:productId
  * @permission read:products
  */
-export const getProduct: RequestHandler = async (req, res, next) => {
+export const getProduct: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { product } = req;
 
@@ -156,7 +156,7 @@ export const getProduct: RequestHandler = async (req, res, next) => {
  * @route PUT /api/products/:productId
  * @permission update:products
  */
-export const updateProduct: RequestHandler = async (req, res, next) => {
+export const updateProduct: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { product } = req;
     // Use matchedData to ensure only validated fields are applied
@@ -181,7 +181,7 @@ export const updateProduct: RequestHandler = async (req, res, next) => {
  * @route DELETE /api/products/:productId
  * @permission delete:products
  */
-export const deleteProduct: RequestHandler = async (req, res, next) => {
+export const deleteProduct: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { product } = req;
     if (!product) {
@@ -199,9 +199,10 @@ export const deleteProduct: RequestHandler = async (req, res, next) => {
  * @route POST /api/products/import
  * @permission create:products
  */
-export const importProducts: RequestHandler = async (req, res, next) => {
+export const importProducts: AsyncRequestHandler = async (req, res, next) => {
   if (!req.file) {
-    return res.status(StatusCodes.BAD_REQUEST).json({ message: "No file uploaded" });
+    res.status(StatusCodes.BAD_REQUEST).json({ message: "No file uploaded" });
+    return;
   }
 
   const filePath = req.file.path;
@@ -328,7 +329,7 @@ export const importProducts: RequestHandler = async (req, res, next) => {
  * @route GET /api/products/export-template
  * @permission create:products
  */
-export const getImportTemplate: RequestHandler = (_req, res, _next) => {
+export const getImportTemplate: AsyncRequestHandler = async (_req, res, _next) => {
   // Join headers with commas
   const csvContent = CSV_PRODUCT_HEADERS.join(',') + '\n';
 
@@ -336,5 +337,6 @@ export const getImportTemplate: RequestHandler = (_req, res, _next) => {
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', 'attachment; filename=product_import_template.csv');
 
-  return res.status(StatusCodes.OK).send(csvContent);
+  res.status(StatusCodes.OK).send(csvContent);
+  return;
 };
