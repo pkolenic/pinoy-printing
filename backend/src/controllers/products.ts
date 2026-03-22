@@ -42,8 +42,8 @@ export const createProduct: RequestHandler = async (req, res, next) => {
       ...data,
       details: data.details || data.description,
       image: imagePath,
-      quantityAvailable: data.quanity || 0,
-      quantityOnHand: data.quantity || 0,
+      quantityAvailable: quantity,
+      quantityOnHand: quantity,
     });
 
     // Save Product to DB
@@ -158,7 +158,9 @@ export const getProduct: RequestHandler = async (req, res, next) => {
  */
 export const updateProduct: RequestHandler = async (req, res, next) => {
   try {
-    const { product, body: updates } = req;
+    const { product } = req;
+    // Use matchedData to ensure only validated fields are applied
+    const updates = matchedData(req);
 
     if (!product) {
       return next(new AppError('Product not found', StatusCodes.NOT_FOUND));
@@ -183,10 +185,10 @@ export const deleteProduct: RequestHandler = async (req, res, next) => {
   try {
     const { product } = req;
     if (!product) {
-      return next(new AppError('Product not found', 404));
+      return next(new AppError('Product not found', StatusCodes.NOT_FOUND));
     }
     await product.deleteOne();
-    res.status(StatusCodes.NO_CONTENT).json(product);
+    res.status(StatusCodes.NO_CONTENT).send();
   } catch (error) {
     next(error);
   }
@@ -289,7 +291,7 @@ export const importProducts: RequestHandler = async (req, res, next) => {
             }
           }
         } catch (err: any) {
-          // This only catches real system/DB errors (e.g. invalid JSON or DB timeout)
+          // This only catches real system/DB errors (e.g., invalid JSON or DB timeout)
           status = 'error';
           errorMessage = err.message;
         }
