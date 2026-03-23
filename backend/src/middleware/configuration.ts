@@ -70,6 +70,9 @@ export const getSiteConfiguration = async (tenantId: string): Promise<ISiteConfi
           settings: {
             requireAuthentication: getEnv(process.env.REQUIRE_AUTHENTICATION, false),
           },
+          static: {
+            favIcon: getEnv(process.env.FAVICON, ''),
+          },
         },
       } as ISiteConfigurationDocument;
     }
