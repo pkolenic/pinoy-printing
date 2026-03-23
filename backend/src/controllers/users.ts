@@ -1,5 +1,5 @@
-import { RequestHandler } from "express";
 import { FilterQuery } from 'mongoose';
+import { matchedData } from 'express-validator';
 import { StatusCodes } from "http-status-codes";
 import {
   IUser,
@@ -16,6 +16,7 @@ import {
 
 import { logger } from '../utils/logging/logger.js';
 import { AppError } from '../utils/errors/index.js';
+import { AsyncRequestHandler } from "../utils/request.js";
 import { paginateResponse } from '../utils/pagination.js';
 import { buildSort, parsePagination } from "../utils/controllers/queryHelper.js";
 import { getTenantId } from "../utils/system.js";
@@ -27,7 +28,7 @@ import { getTenantModels } from "../types/tenantContext.js";
  * @route POST /api/users
  * @permission create:users
  */
-export const createUser: RequestHandler = async (req, res, next) => {
+export const createUser: AsyncRequestHandler = async (req, res, next) => {
   const { username, email, name, phone, addresses = [], role: rawRole } = req.body;
 
   // 1. Validate the user role with a type-safe permission check
@@ -53,7 +54,8 @@ export const createUser: RequestHandler = async (req, res, next) => {
 
   try {
     const { User } = req.tenantModels;
-    const management = getManagementClient(getTenantId(req), req.tenantConfig.backend.auth0);
+    const tenantId = getTenantId(req);
+    const management = getManagementClient(tenantId, req.tenantConfig.backend.auth0);
     // 3. Create an Auth0 user
     const auth0User = await management.users.create(userData);
 
@@ -93,7 +95,7 @@ export const createUser: RequestHandler = async (req, res, next) => {
  * Sync Auth0 user with MongoDB
  * @route POST /api/users/sync
  */
-export const syncUser: RequestHandler = async (req, res, next) => {
+export const syncUser: AsyncRequestHandler = async (req, res, next) => {
   const { userId, tenant_id: tenantId, secret } = req.body;
 
   // Check for missing fields
@@ -134,7 +136,7 @@ export const syncUser: RequestHandler = async (req, res, next) => {
     }
 
     // Check if the user exists or needs creation
-    let user = await User.findOne({ sub: userId });
+    let user = await User.findOne({ sub: userId }).lean<IUserDocument>();
 
     if (!user) {
       // Assign the customer role as this is a self-signup user
@@ -157,11 +159,12 @@ export const syncUser: RequestHandler = async (req, res, next) => {
     }
 
     // Sync MongoDB ID back to Auth0 app_meta_data - Use the Non-null assertion operator '!' since we know that user_id is defined
-    await management.users.update(auth0User.user_id!, { app_metadata: { [tenantId]: { role, id: user.id } } });
+    const mongoId = user._id.toString();
+    await management.users.update(auth0User.user_id!, { app_metadata: { [tenantId]: { role, id: mongoId } } });
 
     res.status(StatusCodes.OK).json({
       role: user.role,
-      id: user.id || user._id.toString()
+      id: mongoId,
     });
   } catch (error) {
     next(error);
@@ -173,7 +176,7 @@ export const syncUser: RequestHandler = async (req, res, next) => {
  * @route DELETE /api/users/:userId
  * @permission delete:users
  */
-export const deleteUser: RequestHandler = async (req, res, next) => {
+export const deleteUser: AsyncRequestHandler = async (req, res, next) => {
   try {
     // 1. Access the user attached by the createAttachMiddleware
     const { user } = req;
@@ -208,9 +211,9 @@ export const deleteUser: RequestHandler = async (req, res, next) => {
  * @filter {string} [phone] Search by phone number (case-insensitive)
  * @filter {Number} [limit=100] Maximum number of users returned (100 is the maximum)
  * @filter {Number} [page=1] Page number (1 is the first page)
- * @filter {string} [sortBy=name] Sort by attribute [name, email, phone]. (e.g. sortBy=name desc)
+ * @filter {string} [sortBy=name] Sort by attribute [name, email, phone]. (e.g., sortBy=name desc)
  */
-export const getUsers: RequestHandler = async (req, res, next) => {
+export const getUsers: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { User } = req.tenantModels;
     const { limit, page, skip } = parsePagination(req, 100);
@@ -259,9 +262,10 @@ export const getUsers: RequestHandler = async (req, res, next) => {
  * Update a user by ID
  * @route PUT /api/users/:userId
  */
-export const updateUser: RequestHandler = async (req, res, next) => {
+export const updateUser: AsyncRequestHandler = async (req, res, next) => {
   try {
-    const { user, body: updates } = req;
+    const { user } = req;
+    const updates = matchedData(req);
 
     if (!user) {
       return next(new AppError('User not found', StatusCodes.NOT_FOUND));
@@ -336,7 +340,7 @@ export const updateUser: RequestHandler = async (req, res, next) => {
  * Update a user's password in Auth0
  * @route PUT /api/users/:userId/password
  */
-export const updateUserPassword: RequestHandler = async (req, res, next) => {
+export const updateUserPassword: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { user } = req;
 
@@ -364,7 +368,7 @@ export const updateUserPassword: RequestHandler = async (req, res, next) => {
  * Get a specific user by ID with populated orders and Auth0 sync
  * @route GET /api/users/:userId
  */
-export const getUser: RequestHandler = async (req, res, next) => {
+export const getUser: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { user } = req;
 
@@ -401,7 +405,7 @@ export const getUser: RequestHandler = async (req, res, next) => {
  * Create a new address for a user
  * @route POST /api/users/:userId/address/create
  */
-export const createAddress: RequestHandler = async (req, res, next) => {
+export const createAddress: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { user } = req;
 
@@ -430,7 +434,7 @@ export const createAddress: RequestHandler = async (req, res, next) => {
  * Delete a user address by ID
  * @route DELETE /api/users/:userId/address/:addressId
  */
-export const deleteAddress: RequestHandler = async (req, res, next) => {
+export const deleteAddress: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { user } = req;
 
@@ -464,7 +468,7 @@ export const deleteAddress: RequestHandler = async (req, res, next) => {
  * Update a user address by ID
  * @route PUT /api/users/:userId/address/:addressId
  */
-export const updateAddress: RequestHandler = async (req, res, next) => {
+export const updateAddress: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { user } = req;
 
@@ -473,7 +477,7 @@ export const updateAddress: RequestHandler = async (req, res, next) => {
     }
 
     const { addressId } = req.params;
-    const updates = req.body;
+    const updates = matchedData(req);
 
     // 1. Locate the specific subdocument
     // We type this as AddressSubdocument to enable .set() and other Mongoose methods
