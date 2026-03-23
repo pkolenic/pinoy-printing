@@ -1,4 +1,3 @@
-import { RequestHandler } from 'express';
 import {
   FilterQuery,
   SortOrder,
@@ -6,6 +5,7 @@ import {
 } from "mongoose";
 import { StatusCodes } from "http-status-codes";
 import { AppError } from '../utils/errors/index.js';
+import { AsyncRequestHandler } from "../utils/request.js";
 
 import {
   ICategory,
@@ -15,18 +15,20 @@ import {
 import {
   IUpdateCategoryRequest
 } from "../types/requests/index.js";
+import {
+  CATEGORY_TREE_CACHE_KEY,
+  CATEGORY_CACHE_TTL,
+} from '../constants/cache.js';
 
 import { paginateResponse } from "../utils/pagination.js";
-
-const CATEGORY_TREE_CACHE_KEY = 'category_tree';
-const CATEGORY_CACHE_TTL = 3600;
+import { parsePagination } from "../utils/controllers/queryHelper.js";
 
 /**
  * Create a new category
  * @route POST /api/categories
  * @permission create:categories
  */
-export const createCategory: RequestHandler = async (req, res, next) => {
+export const createCategory: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { name, parent } = req.body;
     const { Category } = req.tenantModels;
@@ -50,11 +52,10 @@ export const createCategory: RequestHandler = async (req, res, next) => {
  * @filter {Number} [limit=100] Maximum number of users returned (100 is the maximum)
  * @filter {Number} [page=1] Page number (1 is the first page)
  */
-export const getCategories: RequestHandler = async (req, res, next) => {
+export const getCategories: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { Category } = req.tenantModels;
-    const limit = parseInt(req.query.limit as string, 10) || 100;
-    const page = parseInt(req.query.page as string, 10) || 1;
+    const { limit, page, skip } = parsePagination(req);
 
     // Use FilterQuery<ICategory> to allow Mongoose-specific keys ($or, $text, etc.)
     const query: FilterQuery<ICategory> = {};
@@ -66,17 +67,16 @@ export const getCategories: RequestHandler = async (req, res, next) => {
     // Construct sort object with bracket notation
     const sort: { [key: string]: SortOrder } = { [sortField]: sortOrder };
 
-    const [categoryCount, categories] = await Promise.all([
+    const [count, categories] = await Promise.all([
       Category.countDocuments(query),
       Category.find(query)
         .sort(sort)
-        .skip((page - 1) * limit)
+        .skip(skip)
         .limit(limit)
         .lean<ICategory[]>(),
     ]);
 
-    const formattedResponse = paginateResponse<ICategory>(req, categories, categoryCount, page, limit);
-    res.status(StatusCodes.OK).json(formattedResponse);
+    res.status(StatusCodes.OK).json(paginateResponse<ICategory>(req, categories, count, page, limit));
   } catch (error) {
     next(error);
   }
@@ -87,13 +87,14 @@ export const getCategories: RequestHandler = async (req, res, next) => {
  * @route GET /api/categories/tree
  * @permission read:categories
  */
-export const getCategoryTree: RequestHandler = async (req, res, next) => {
+export const getCategoryTree: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { Category } = req.tenantModels;
     // 1. Check Redis Cache
     const cachedTree = await req.tenantRedis.getJSON<ICategoryTree[]>(CATEGORY_TREE_CACHE_KEY);
     if (cachedTree) {
-      return res.status(StatusCodes.OK).json(cachedTree);
+      res.status(StatusCodes.OK).json(cachedTree);
+      return;
     }
 
     // 2. Fetch Flat list from DB
@@ -146,7 +147,7 @@ export const getCategoryTree: RequestHandler = async (req, res, next) => {
  * @route GET /api/categories/:categoryId
  * @permission read:categories
  */
-export const getCategory: RequestHandler = async (req, res, next) => {
+export const getCategory: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { category } = req;
 
@@ -164,7 +165,7 @@ export const getCategory: RequestHandler = async (req, res, next) => {
  * @route DELETE /api/categories/:categoryId
  * @permission delete:categories
  */
-export const deleteCategory: RequestHandler = async (req, res, next) => {
+export const deleteCategory: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { Product } = req.tenantModels;
     const { category: categoryToDelete } = req;
@@ -200,7 +201,7 @@ export const deleteCategory: RequestHandler = async (req, res, next) => {
  * @route PUT /api/categories/:categoryId
  * @permission update:categories
  */
-export const updateCategory: RequestHandler = async (req, res, next) => {
+export const updateCategory: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { Category } = req.tenantModels;
     const { name, parent } = req.body as IUpdateCategoryRequest;
@@ -227,7 +228,7 @@ export const updateCategory: RequestHandler = async (req, res, next) => {
         if (potentialParent?.path.startsWith(`${category.path}/`)) {
           return next(new AppError('A category cannot have its own descendant as a parent', StatusCodes.BAD_REQUEST));
         }
-        category.set('parent', parent ? new Types.ObjectId(parent) : null);
+        category.set('parent', new Types.ObjectId(parent));
       } else {
         category.parent = null; // Move to root
       }
