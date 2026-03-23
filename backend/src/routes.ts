@@ -19,17 +19,26 @@ router.use(configurationMiddleware);
 mountRoute(router, '/api', apiRoutes);
 mountRoute(router, '/site', siteRoutes);
 
+// Silently 404 well-known files
+router.get('/.well-known/*path', getWellKnownNotFound);
+
+// GET favicons
+const faviconFiles = [
+  'favicon\\.ico',
+  'favicon-16x16\\.png',
+  'favicon-32x32\\.png',
+  'apple-touch-icon\\.png',
+  'android-chrome-192x192\\.png',
+  'android-chrome-512x512\\.png',
+  'apple-touch-icon-precomposed\\.png'
+].join('|');
+router.get(new RegExp(`.*(${faviconFiles})$`), getFavicon);
+
 /**
  * Static Folder Middleware
  * Serves files like images, CSS, or JS from the public directory.
  */
 router.use(express.static(PUBLIC_DIR, { index: false }));
-
-// Silently 404 well-known files
-router.get('/.well-known/*path', getWellKnownNotFound);
-
-// GET favicon and icons
-router.get(['/favicon.ico', '/apple-touch-icon.png', 'apple-touch-icon-precomposed.png'], getFavicon);
 
 // And a fallback for React Router:
 router.get('*path', getIndex);

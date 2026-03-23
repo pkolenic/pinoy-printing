@@ -32,14 +32,19 @@ export const getRouteStack = (router: any, prefix = ''): any[] => {
   return router.stack.flatMap((layer: any) => {
     // 1. If it's a route (like .get, .post, .route)
     if (layer.route) {
-      // Clean up the path to ensure it looks like /path/subpath
-      const fullPath = (prefix + '/' + layer.route.path).replace(/\/+/g, '/');
+      const routePath = layer.route.path;
+
+      // If it's a string, clean it. If it's a RegExp, keep it as is.
+      const path = typeof routePath === 'string'
+        ? (prefix + '/' + routePath).replace(/\/+/g, '/')
+        : routePath;
+
       const methods = Object.keys(layer.route.methods);
 
       return methods.map((method) => {
         const middleware = layer.route.stack
           .map((s: any) => s.name || s.handle.name || 'anonymous');
-        return { path: fullPath, method, middleware };
+        return { path, method, middleware };
       });
     }
 

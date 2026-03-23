@@ -71,13 +71,19 @@ describe('Main Router Infrastructure', () => {
   });
 
   it('should serve all favicon and icon variations via getFavicon', () => {
-    // Express joins array paths with commas in the internal stack
-    const pathString = '/favicon.ico,/apple-touch-icon.png,apple-touch-icon-precomposed.png';
-    const route = routes.find(r => r.path === pathString);
+    // Find the route where the path is a RegExp and matches one of your files
+    const route = routes.find(r =>
+      r.path instanceof RegExp && r.path.test('/favicon-32x32.png')
+    );
 
     expect(route, 'Icons route should be registered').toBeDefined();
     expect(route?.method).toBe('get');
     expect(route?.middleware).toContain('getFavicon');
+
+    // Verify it matches a few specific variations
+    expect(route?.path.test('/favicon.ico')).toBe(true);
+    expect(route?.path.test('/android-chrome-512x512.png')).toBe(true);
+    expect(route?.path.test('/other-file.js')).toBe(false);
   });
 
   it('should have a catch-all fallback for React Router using getIndex', () => {
