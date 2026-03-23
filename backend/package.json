@@ -17,7 +17,9 @@
     "node",
     "express",
     "mongodb",
-    "mongoose"
+    "mongoose",
+    "typescript",
+    "vitest"
   ],
   "author": "Patrick Kolenic",
   "license": "MIT",

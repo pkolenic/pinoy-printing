@@ -15,6 +15,12 @@
     "test": "vitest --run",
     "type-check": "tsc -b --noEmit"
   },
+  "keywords": [
+    "react",
+    "redux",
+    "typescript",
+    "vitest"
+  ],
   "dependencies": {
     "@auth0/auth0-react": "^2.9.0",
     "@emotion/react": "^11.14.0",
