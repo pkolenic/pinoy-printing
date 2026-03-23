@@ -1,5 +1,5 @@
 import express, { Router } from 'express';
-import { PUBLIC_DIR } from './config/paths.js';
+import { PUBLIC_DIR } from './constants/paths.js';
 import apiRoutes from './routes/api.js';
 import siteRoutes from './routes/site.js';
 import { configurationMiddleware } from './middleware/index.js';

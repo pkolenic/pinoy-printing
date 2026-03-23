@@ -12,7 +12,7 @@ import {
 
 // 1. Mock internal dependencies
 vi.mock('fs');
-vi.mock('../config/paths.js', () => ({ PUBLIC_DIR: '/public' }));
+vi.mock('../constants/paths.js', () => ({ PUBLIC_DIR: '/public' }));
 vi.mock('../utils/logging/logger.js', () => ({
   logger: {
     error: vi.fn(),

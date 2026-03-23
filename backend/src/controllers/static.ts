@@ -2,7 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import { StatusCodes } from "http-status-codes";
 import { Readable } from "node:stream";
-import { PUBLIC_DIR } from '../config/paths.js';
+import { PUBLIC_DIR } from '../constants/paths.js';
 import { AsyncRequestHandler } from "../utils/request.js";
 import { AppError } from "../utils/errors/index.js";
 import { logger } from '../utils/logging/logger.js';
