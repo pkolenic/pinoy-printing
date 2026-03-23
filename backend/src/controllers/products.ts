@@ -1,95 +1,33 @@
-import { RequestHandler } from "express";
 import { FilterQuery } from 'mongoose';
 import { StatusCodes } from "http-status-codes";
 import { matchedData } from 'express-validator';
 import { detailedDiff } from 'deep-object-diff';
 import fs from 'fs';
 import csv from 'csv-parser';
-
+import { AsyncRequestHandler } from "../utils/request.js";
 import { AppError } from '../utils/errors/index.js';
-
 import {
-  ICategory,
-  ICategoryDocument,
-  IProduct,
   CSV_PRODUCT_HEADERS,
   getRelatedCategoryIds,
+  getCommitedStock,
+  IProduct,
+  resolveCategory,
+  sanitizeProduct,
 } from '../models/index.js'
-import { paginateResponse } from "../utils/paginationHelper.js";
+import { IImportResult, IProductDiff, IProductImportRow, } from "../types/requests/index.js";
+import { paginateResponse } from "../utils/pagination.js";
 import { buildSort, parsePagination } from "../utils/controllers/queryHelper.js";
 
-type IProductImportRow = Omit<
-  IProduct,
-  'categories' | 'category' | 'price' | 'quantity' | 'customizationSchema' | 'showIfOutOfStock'
-> & {
-  category: string; // The single Leaf Category ID from the CSV
-  price: string;
-  quantity: string;
-  showIfOutOfStock?: string;
-  customizationSchema?: string;
-};
-
-/**
- * The shape of the detailed-diff library's output
- */
-interface IProductDiff {
-  added: Record<string, any>;
-  deleted: Record<string, any>;
-  updated: Record<string, any>;
-}
-
-/**
- * The individual row result sent back to the client
- */
-interface IImportResult extends IProductImportRow {
-  status: 'created' | 'updated' | 'error';
-  diff: IProductDiff | null;
-  error: string | null;
-}
-
-/**
- * The response sent back to the client after the import is complete.
- */
-interface IImportResponse {
-  message: string;
-  isPreview: boolean;
-  summary: {
-    created: number;
-    updated: number;
-    errors: number;
-  };
-  results: IImportResult[];
-}
-
-/**
- * Sanitizes product data based on user permissions
- */
-const sanitizeProduct = (product: IProduct, isStaff: boolean): IProduct => {
-  // Create a base object that ensures customizationSchema is at least set null
-  const baseProduct = {
-    ...product,
-    customizationSchema: product.customizationSchema ?? null,
-  };
-
-  if (isStaff) {
-    return baseProduct as IProduct;
-  }
-
-  // For non-staff, exclude sensitive fields
-  const { quantity, showIfOutOfStock, ...publicProduct } = baseProduct;
-
-  return publicProduct as IProduct;
-};
 
 /**
  * Creates a new product
  * @route POST /api/products
  * @permission create:products
  */
-export const createProduct: RequestHandler = async (req, res, next) => {
+export const createProduct: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { Product } = req.tenantModels;
-    const { image, category, ...data } = matchedData(req);
+    const { image, quantity = 0, ...data } = matchedData(req);
 
     // TODO -- Upload image to Store
     // Placeholder for future S3 logic:
@@ -102,14 +40,14 @@ export const createProduct: RequestHandler = async (req, res, next) => {
     const newProduct = new Product({
       ...data,
       details: data.details || data.description,
-      categories: [category],
       image: imagePath,
-      quantity: data.quantity || 0,
+      quantityAvailable: quantity,
+      quantityOnHand: quantity,
     });
 
     // Save Product to DB
     await newProduct.save();
-    await newProduct.populate('categories', 'name slug id')
+    await newProduct.populate('category', 'name slug path')
 
     res.status(StatusCodes.CREATED).json(newProduct);
   } catch (error) {
@@ -120,7 +58,6 @@ export const createProduct: RequestHandler = async (req, res, next) => {
 /**
  * Gets a list of products
  * @route GET /api/products
- * @permission read:products / update:products
  * @filter {string} [search] - Search term to filter products by name
  * @filter {string} [category] - Parent Category to filter products by
  * @filter {number} [minPrice] - Minimum price to filter products by
@@ -130,7 +67,7 @@ export const createProduct: RequestHandler = async (req, res, next) => {
  * @filter {number} [page=1] - Page number
  * @filter {number} [limit=10] - Number of products per page
  */
-export const getProducts: RequestHandler = async (req, res, next) => {
+export const getProducts: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { Category, Product } = req.tenantModels;
     const { limit, page, skip } = parsePagination(req);
@@ -150,12 +87,13 @@ export const getProducts: RequestHandler = async (req, res, next) => {
     const { search, category, minPrice, maxPrice, maxInventory, sortBy } = req.query as queryType
 
     if (category) {
-      const categoryIds = await getRelatedCategoryIds(Category, category.toLowerCase());
+      const categoryIds = await getRelatedCategoryIds(Category, category);
       if (categoryIds.length === 0) {
         // If slug provided but category doesn't exist, return empty early'
-        return res.status(200).json(paginateResponse(req, [], 0, page, limit));
+        res.status(200).json(paginateResponse(req, [], 0, page, limit));
+        return;
       }
-      query.categories = { $in: categoryIds };
+      query.category = { $in: categoryIds };
     }
 
     if (search) {
@@ -165,11 +103,11 @@ export const getProducts: RequestHandler = async (req, res, next) => {
       query.price = { ...(minPrice && { $gte: minPrice }), ...(maxPrice && { $lte: maxPrice }) };
     }
     if (maxInventory) {
-      query.quantity = { $lte: maxInventory };
+      query.quantityAvailable = { $lte: maxInventory };
     }
 
     // Sort & Execute
-    const allowedSort = isStaff ? ['name', 'price', 'quantity', 'category'] : ['name', 'price', 'category'];
+    const allowedSort = isStaff ? ['name', 'price', 'quantityAvailable', 'quantityOnHand', 'category'] : ['name', 'price', 'category'];
     const sort = buildSort(sortBy, allowedSort);
 
     const [count, products] = await Promise.all([
@@ -178,12 +116,12 @@ export const getProducts: RequestHandler = async (req, res, next) => {
         .sort(sort)
         .skip(skip)
         .limit(limit)
-        .populate('categories', 'name slug id')
+        .populate('category', 'name slug path')
         .lean<IProduct[]>(),
     ]);
 
     const securedData = products.map(p => sanitizeProduct(p, isStaff)) as IProduct[];
-    res.status(200).json(paginateResponse(req, securedData, count, page, limit));
+    res.status(StatusCodes.OK).json(paginateResponse(req, securedData, count, page, limit));
   } catch (error) {
     next(error);
   }
@@ -194,14 +132,14 @@ export const getProducts: RequestHandler = async (req, res, next) => {
  * @route GET /api/products/:productId
  * @permission read:products
  */
-export const getProduct: RequestHandler = async (req, res, next) => {
+export const getProduct: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { product } = req;
 
     if (!product) {
-      return next(new AppError('Product not found', 404));
+      return next(new AppError('Product not found', StatusCodes.NOT_FOUND));
     }
-    await product.populate('categories', 'name slug id')
+    await product.populate('category', 'name slug path')
 
     const userPermissions = req.auth?.payload.permissions || [];
     const isStaff = userPermissions.includes('read:inventory')
@@ -218,23 +156,19 @@ export const getProduct: RequestHandler = async (req, res, next) => {
  * @route PUT /api/products/:productId
  * @permission update:products
  */
-export const updateProduct: RequestHandler = async (req, res, next) => {
+export const updateProduct: AsyncRequestHandler = async (req, res, next) => {
   try {
-    const { product, body: updates } = req;
+    const { product } = req;
+    // Use matchedData to ensure only validated fields are applied
+    const updates = matchedData(req);
 
     if (!product) {
-      return next(new AppError('Product not found', 404));
-    }
-
-    // Manually handle the category -> categories mapping
-    if (updates.category) {
-      updates.categories = [updates.category];
-      delete updates.category;
+      return next(new AppError('Product not found', StatusCodes.NOT_FOUND));
     }
 
     product.set(updates);
     await product.save();
-    await product.populate('categories', 'name slug id')
+    await product.populate('category', 'name slug path')
 
     res.status(StatusCodes.OK).json(product);
   } catch (error) {
@@ -247,14 +181,14 @@ export const updateProduct: RequestHandler = async (req, res, next) => {
  * @route DELETE /api/products/:productId
  * @permission delete:products
  */
-export const deleteProduct: RequestHandler = async (req, res, next) => {
+export const deleteProduct: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { product } = req;
     if (!product) {
-      return next(new AppError('Product not found', 404));
+      return next(new AppError('Product not found', StatusCodes.NOT_FOUND));
     }
     await product.deleteOne();
-    res.status(StatusCodes.NO_CONTENT).json(product);
+    res.status(StatusCodes.NO_CONTENT).send();
   } catch (error) {
     next(error);
   }
@@ -265,150 +199,129 @@ export const deleteProduct: RequestHandler = async (req, res, next) => {
  * @route POST /api/products/import
  * @permission create:products
  */
-export const importProducts: RequestHandler = async (req, res, next) => {
+export const importProducts: AsyncRequestHandler = async (req, res, next) => {
   if (!req.file) {
-    return res.status(StatusCodes.BAD_REQUEST).json({ message: "No file uploaded" });
+    res.status(StatusCodes.BAD_REQUEST).json({ message: "No file uploaded" });
+    return;
   }
 
   const filePath = req.file.path;
-  const results: IProductImportRow[] = [];
   const isPreview = req.query.preview === 'true';
   const allowUpdate = req.query.allowUpdate === 'true';
+  const results: IProductImportRow[] = [];
 
-  fs.createReadStream(filePath)
-    .pipe(csv())
-    .on('data', (data: IProductImportRow) => results.push(data))
-    .on('error', (error) => {
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-      next(error);
-    })
-    .on('end', async () => {
-      try {
-        const { Category, Product } = req.tenantModels;
-        const stats = { created: 0, updated: 0, errors: 0 };
-        const importResults: IImportResult[] = [];
+  try {
+    // 1. Read the entire file into the results array safely
+    const parser = fs.createReadStream(filePath).pipe(csv());
 
-        for (const row of results) {
-          let status: 'created' | 'updated' | 'error' = 'error';
-          let errorMessage: string | null = null;
-          let diff: IProductDiff | null = null;
+    for await (const record of parser) {
+      results.push(record);
+    }
 
-          try {
-            // 1. Format and Parse CSV data
-            const sku = row.sku?.trim();
+    const { Category, Product, Order } = req.tenantModels;
+    const stats = { created: 0, updated: 0, errors: 0 };
+    const importResults: IImportResult[] = [];
+
+    // 2. Process the results
+    for (const row of results) {
+      let status: 'created' | 'updated' | 'error' = 'error';
+      let errorMessage: string | null = null;
+      let diff: IProductDiff | null = null;
+
+      // Resolve Category
+      const categoryInput = row.category?.trim();
+      const resolvedCategoryId = await resolveCategory(Category, categoryInput);
+
+      if (!resolvedCategoryId) {
+        status = 'error';
+        errorMessage = `Category not found for: "${categoryInput}"`;
+      } else {
+        try {
+          const sku = row.sku?.trim().toLowerCase();
+          const existingProduct = await Product.findOne({ sku });
+
+          if (existingProduct && !allowUpdate) {
+            status = 'error';
+            errorMessage = `SKU ${sku} already exists and updates are disabled.`;
+          } else {
+            // Prepare product data
+            const quantity = parseInt(row.quantity, 10) || 0;
+
             const productData = {
               sku,
               name: row.name?.trim(),
               description: row.description?.trim(),
-              details: row.details?.trim(),
-              price: parseFloat(row.price),
-              quantity: parseInt(row.quantity, 10),
+              details: row.details?.trim() || row.description?.trim(),
+              price: parseFloat(row.price) || 0,
+              category: resolvedCategoryId,
+              quantityOnHand: quantity,
+              quantityAvailable: quantity,
               showIfOutOfStock: row.showIfOutOfStock?.toLowerCase() === 'true',
               customizationSchema: row.customizationSchema?.trim() ? JSON.parse(row.customizationSchema) : {},
-              categories: row.category?.trim() ? [row.category.trim()] : [],
             };
 
-            const existingProduct = await Product.findOne({ sku });
+            if (existingProduct) {
+              status = 'updated';
 
-            // 2. Logic Check: Handle Duplicate SKU
-            if (existingProduct && !allowUpdate) {
-              status = 'error';
-              errorMessage = `SKU ${row.sku} already exists.`;
-            } else {
-              // CATEGORY SYNC: Simulate pre-save middleware logic for the diff
-              if (productData.categories.length > 0) {
-                const leafId = productData.categories[0];
-                const leafCategory = await Category.findById(leafId).lean<ICategory>();
+              const committedQuantity = await getCommitedStock(Order, existingProduct._id);
+              const newPhysicalQty = quantity;
 
-                if (leafCategory && leafCategory.path) {
-                  const slugs = leafCategory.path.split('/');
-                  const ancestorDocs = await Category.find({
-                    slug: { $in: slugs }
-                  }).select('_id').lean<ICategoryDocument[]>();
+              productData.quantityOnHand = newPhysicalQty;
+              productData.quantityAvailable = Math.max(0, newPhysicalQty - committedQuantity);
 
-                  // Set the full array of ObjectIds so the diff is clean
-                  productData.categories = ancestorDocs.map(doc => doc._id.toString());
-                }
+              // Convert to a plain object and cast to any to allow field overrides
+              const currentData: any = existingProduct.toObject();
+
+              // Normalize the Category ID to a string for clean diffing
+              currentData.category = currentData.category?._id?.toString() || currentData.category?.toString();
+
+              // Prepare the target data
+              const targetData = { ...productData, category: productData.category.toString() };
+
+              // Run the diff
+              diff = detailedDiff(currentData, targetData) as IProductDiff;
+
+              if (!isPreview) {
+                existingProduct.set(productData);
+                await existingProduct.save();
               }
-
-              if (existingProduct) {
-                status = 'updated';
-
-                // Calculate Diff (Current DB state vs. Incoming CSV state)
-                const currentData = JSON.parse(JSON.stringify(existingProduct.toObject()));
-                const targetData = JSON.parse(JSON.stringify(productData));
-
-                // Avoid diff noise on customizationSchema if both are effectively empty
-                if (Object.keys(currentData.customizationSchema || {}).length === 0 &&
-                  Object.keys(targetData.customizationSchema || {}).length === 0) {
-                  targetData.customizationSchema = currentData.customizationSchema;
-                }
-
-                diff = detailedDiff(currentData, targetData) as IProductDiff;
-
-                if (isPreview) {
-                  // Validate a merged result without saving
-                  const testDoc = Object.assign(existingProduct, productData);
-                  await testDoc.validate();
-                } else {
-                  Object.assign(existingProduct, productData);
-                  await existingProduct.save();
-                }
-              } else {
-                status = 'created';
-                const newProduct = new Product(productData);
-
-                if (isPreview) {
-                  await newProduct.validate();
-                } else {
-                  await newProduct.save();
-                }
-              }
-            }
-
-            // 3. Update summary statistics
-            if (status === 'error') {
-              stats.errors++;
             } else {
-              status === 'updated' ? stats.updated++ : stats.created++;
+              status = 'created';
+              const newProduct = new Product(productData);
+              isPreview ? await newProduct.validate() : await newProduct.save();
             }
-          } catch (err: any) {
-            status = 'error';
-            errorMessage = err.message;
-            stats.errors++;
           }
-
-          // 4. Push row with metadata
-          importResults.push({
-            ...row,
-            status,
-            diff,
-            error: errorMessage
-          });
+        } catch (err: any) {
+          // This only catches real system/DB errors (e.g., invalid JSON or DB timeout)
+          status = 'error';
+          errorMessage = err.message;
         }
-
-        // Cleanup file after processing
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
-
-        const response: IImportResponse = {
-          message: isPreview ? "Preview completed" : "Import completed",
-          isPreview,
-          summary: stats,
-          results: importResults
-        };
-
-        res.status(StatusCodes.OK).json(response);
-      } catch (error) {
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
-        next(error);
       }
+
+      // Update stats and push result
+      if (status === 'error') {
+        stats.errors++;
+      } else {
+        status === 'updated' ? stats.updated++ : stats.created++;
+      }
+
+      importResults.push({ ...row, status, diff, error: errorMessage });
+    }
+
+    res.status(StatusCodes.OK).json({
+      message: isPreview ? "Preview completed successfully" : "Import completed successfully",
+      isPreview,
+      summary: stats,
+      results: importResults,
     });
+  } catch (err) {
+    next(err);
+  } finally {
+    // 3. GUARANTEED CLEANUP: Happens whether success or failure
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  }
 };
 
 /**
@@ -416,7 +329,7 @@ export const importProducts: RequestHandler = async (req, res, next) => {
  * @route GET /api/products/export-template
  * @permission create:products
  */
-export const getImportTemplate: RequestHandler = (_req, res, _next) => {
+export const getImportTemplate: AsyncRequestHandler = async (_req, res, _next) => {
   // Join headers with commas
   const csvContent = CSV_PRODUCT_HEADERS.join(',') + '\n';
 
@@ -424,5 +337,6 @@ export const getImportTemplate: RequestHandler = (_req, res, _next) => {
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', 'attachment; filename=product_import_template.csv');
 
-  return res.status(200).send(csvContent);
+  res.status(StatusCodes.OK).send(csvContent);
+  return;
 };

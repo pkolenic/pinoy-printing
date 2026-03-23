@@ -11,12 +11,10 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 // TODO - This is work for updating the SAAS DB but will need something to handle each of the tenants DBs
 const config = {
   mongodb: {
-    url: process.env.MONGO_URI,
+    url: process.env.MONGO_URL,
     databaseName: process.env.MONGO_DB,
 
     options: {
-      useNewUrlParser: true, // removes a deprecation warning when connecting
-      useUnifiedTopology: true, // removes a deprecating warning when connecting
       //   connectTimeoutMS: 3600000, // increase connection timeout to 1 hour
       //   socketTimeoutMS: 3600000, // increase socket timeout to 1 hour
     }

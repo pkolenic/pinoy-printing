@@ -4,6 +4,7 @@ import {
   checkPermissions,
   createAttachMiddleware,
   jwtCheck,
+  verifyRelationship,
 } from '../middleware/index.js';
 import { TenantModels } from "../types/tenantContext.js";
 
@@ -40,5 +41,15 @@ export const createRouteGuards = <P extends string,  K extends keyof TenantModel
     ...attachments.map(a => createAttachMiddleware(a.modelName, a.param, a.key))
   ];
 
-  return { guard, guardedResource, guardedMultiResource };
+  const guardedRelationship= (perm: P, resourceField : string, rules: (ValidationChain | RequestHandler)[] = [], isSelf = false) => [
+    ...guardedResource(perm, rules, isSelf),
+    verifyRelationship(defaultKey!, resourceField, defaultIdParam!)
+  ];
+
+  return {
+    guard,
+    guardedResource,
+    guardedMultiResource,
+    guardedRelationship,
+  };
 };

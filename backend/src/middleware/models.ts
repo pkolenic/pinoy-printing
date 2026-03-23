@@ -1,8 +1,11 @@
-import { RequestHandler } from 'express';
+import {
+  Request,
+  Response,
+  NextFunction,
+} from 'express';
 import { StatusCodes } from 'http-status-codes';
 
 import { AppError } from '../utils/errors/index.js';
-import { AddressSubdocument } from '../models/index.js';
 import { TenantModels } from '../types/tenantContext.js';
 
 /**
@@ -13,16 +16,26 @@ export const createAttachMiddleware = <K extends keyof TenantModels>(
   modelName: K,
   paramName: string,
   reqPropertyName: string
-): RequestHandler => {
-  return async (req, _res, next) => {
+) => {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    // If the resource was already attached (e.g. by checkPermissions), skip!
+    if ((req as any)[reqPropertyName]) {
+      return next();
+    }
+
     const itemId: string = req.params[paramName];
+
+    if (!itemId) {
+      return next(new AppError(`Missing parameter: ${paramName}`, StatusCodes.BAD_REQUEST));
+    }
+
     const model = req.tenantModels[modelName];
 
     try {
       const item = await model.findById(itemId).exec();
 
       if (!item) {
-        return next(new AppError(`${String(modelName)} not found`, StatusCodes.NO_CONTENT));
+        return next(new AppError(`${String(modelName)} not found`, StatusCodes.NOT_FOUND));
       }
 
       // Attach the document to the request object
@@ -30,7 +43,12 @@ export const createAttachMiddleware = <K extends keyof TenantModels>(
       (req as any)[reqPropertyName] = item;
 
       next();
-    } catch (error: unknown) {
+    } catch (error: any) {
+      // Check for Mongoose CastError (e.g., invalid ObjectId)
+      if (error.name === 'CastError') {
+        return next(new AppError(`Invalid ${paramName}: ${itemId}`, StatusCodes.BAD_REQUEST));
+      }
+      // Check if the error is an AppError instance
       if (error instanceof AppError) {
         return next(error);
       }
@@ -40,32 +58,3 @@ export const createAttachMiddleware = <K extends keyof TenantModels>(
     }
   }
 }
-
-/**
- * Middleware to find a specific address from the attached user
- * and attach it to the request for the next handler.
- */
-export const attachAddress: RequestHandler = (req, res, next) => {
-  const { user } = req;
-
-  // Look for addressId in body (POST) or query (GET)
-  const addressId = req.body.addressId || req.query.addressId;
-
-  if (!user) {
-    return next(new AppError('User context required to attach address', StatusCodes.INTERNAL_SERVER_ERROR));
-  }
-
-  // If an addressId was provided, find it in the user's subdocuments
-  if (addressId) {
-    const foundAddress = user.addresses.id(addressId) as AddressSubdocument | null;
-
-    if (!foundAddress) {
-      return next(new AppError('The specified address was not found', StatusCodes.NO_CONTENT));
-    }
-
-    // Attach to the request for the controller to use
-    req.address = foundAddress;
-  }
-
-  next();
-};

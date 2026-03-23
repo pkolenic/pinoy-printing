@@ -6,9 +6,11 @@ import {
   CategorySchema,
   ICustomerProductDocument,
   CustomerProductSchema,
-  IOrderDocument,
+  IOrder,
+  OrderModel,
   OrderSchema,
-  IUserDocument,
+  IUser,
+  UserModel,
   UserSchema,
 } from '../models/index.js';
 
@@ -17,9 +19,10 @@ import {
 export interface TenantModels {
   Category: Model<ICategory>;
   CustomerProduct: Model<ICustomerProductDocument>;
-  Order: Model<IOrderDocument>;
+  Order: OrderModel;
   Product: Model<IProduct>;
-  User: Model<IUserDocument>;
+  User: UserModel;
+
   [key: string]: Model<any>;
 }
 
@@ -30,8 +33,8 @@ export const getTenantModels = (conn: Connection): TenantModels => {
   return {
     Category: conn.model<ICategory>('Category', CategorySchema),
     CustomerProduct: conn.model<ICustomerProductDocument>('CustomerProduct', CustomerProductSchema),
-    Order: conn.model<IOrderDocument>('Order', OrderSchema),
+    Order: (conn.models.Order || conn.model<IOrder, OrderModel>('Order', OrderSchema)) as OrderModel,
     Product: conn.model<IProduct>('Product', ProductSchema),
-    User: conn.model<IUserDocument>('User', UserSchema),
+    User: (conn.models.User || conn.model<IUser, UserModel>('User', UserSchema)) as UserModel,
   };
 };

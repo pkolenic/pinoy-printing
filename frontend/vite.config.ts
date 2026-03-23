@@ -29,7 +29,7 @@ export default defineConfig({
     host: true,
     // Proxy Settings so that the frontend can make requests to the backend
     proxy: {
-      '^/(api|site)': {
+      '^/(api|site|favicon)': {
         target: targetUrl,
         changeOrigin: true,
         configure: (proxy) => {

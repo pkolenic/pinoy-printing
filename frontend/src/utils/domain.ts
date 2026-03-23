@@ -1,3 +1,5 @@
+import slugify from '@sindresorhus/slugify';
+
 export const isPrimaryDomain = () => {
   const isDev = import.meta.env.DEV;
   const rawDomains = import.meta.env.VITE_PRIMARY_DOMAINS;
@@ -18,11 +20,15 @@ export const isPrimaryDomain = () => {
 };
 
 export const getTenantId = () => {
+  /**
+   * Currently, it doesn't make sense to use this the SITE override as Auth0 can only call the backend method from a production site
+   */
+  // const params = new URLSearchParams(window.location.search);
+  // const siteOverride = params.get('SITE');
+  //
+  // // Use override if it exists, otherwise fallback to hostname
+  // const hostname = siteOverride || window.location.hostname;
+
   const hostname = window.location.hostname;
-  return hostname.toLowerCase() // Standardize the case for case-sensitive DBs/Redis
-    .trim() // Remove accidental padding
-    .replace(/^www\./, '') // Normalize (treat www.site.com as site.com)
-    .replace(/[^a-z0-9.-]/g, '') // Keep alphanumeric, dots, and hyphens (standard DNS chars)
-    .replace(/^\.+|\.+$/g, '') // Remove leading/trailing dots for safety
-    .replace(/\./g, '_'); // Replace dots with underscores for DB compatibility
+  return slugify(hostname.toLowerCase(), { separator: '_' });
 }

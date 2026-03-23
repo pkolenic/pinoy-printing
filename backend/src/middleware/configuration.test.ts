@@ -1,0 +1,197 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { StatusCodes } from 'http-status-codes';
+import { Request, Response } from 'express';
+
+import { getSiteConfiguration, configurationMiddleware } from './configuration';
+import { SiteConfiguration, getTenantDb } from '../services/db.js';
+import * as systemUtils from '../utils/system.js';
+import { AppError } from '../utils/errors';
+import { mockRedisInstance as redis } from '../test/mocks/services/redis';
+
+// 1. Setup Mocks with explicit Promise returns
+vi.mock('../services/redis.js', async () => {
+  const mod = await import('../test/mocks/services/redis');
+  return mod.redisMockFactory();
+});
+
+vi.mock('../services/db.js', () => ({
+  SiteConfiguration: {
+    findOne: vi.fn().mockResolvedValue(null),
+  },
+  // Must be async (mockResolvedValue) to match signature
+  getTenantDb: vi.fn().mockResolvedValue({
+    model: vi.fn(),
+    readyState: 1
+  }),
+}));
+
+vi.mock('../services/tenantRedis.js', () => ({
+  getTenantRedis: vi.fn().mockImplementation(() => Promise.resolve({})),
+}));
+
+vi.mock('../utils/system.js', () => ({
+  getTenantId: vi.fn().mockReturnValue('test-tenant'),
+  getEnv: vi.fn((val, fallback) => val || fallback),
+}));
+
+vi.mock('../types/tenantContext.js', () => ({
+  getTenantModels: vi.fn().mockReturnValue({}),
+}));
+
+describe('Configuration Logic', () => {
+  const tenantId = 'test-tenant';
+
+  beforeEach(() => {
+    // vi.restoreAllMocks() is key to preventing state leakage between tests
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
+  describe('getSiteConfiguration', () => {
+    it('should return data from Redis on a cache hit', async () => {
+      const mockConfig = { frontend: { site: { name: 'Cached Site' } } };
+      vi.mocked(redis.getJSON).mockResolvedValue(mockConfig);
+      const result = await getSiteConfiguration(tenantId);
+
+      expect(result).toEqual(mockConfig);
+      expect(redis.getJSON).toHaveBeenCalledWith(`site-config:${tenantId}`);
+      expect(SiteConfiguration.findOne).not.toHaveBeenCalled();
+    });
+
+    it('should fetch from DB on cache miss and save to Redis', async () => {
+      const dbConfig = { frontend: { site: { name: 'DB Site' } } };
+      vi.mocked(redis.getJSON).mockResolvedValue(null);
+      vi.mocked(SiteConfiguration.findOne).mockResolvedValue(dbConfig);
+
+      const result = await getSiteConfiguration(tenantId);
+
+      expect(result).toEqual(dbConfig);
+      expect(redis.setJSON).toHaveBeenCalledWith(`site-config:${tenantId}`, dbConfig, 600);
+    });
+
+    it('should hydrate defaults and save to Redis if DB also misses', async () => {
+      vi.mocked(redis.getJSON).mockResolvedValue(null);
+      vi.mocked(SiteConfiguration.findOne).mockResolvedValue(null);
+
+      const result = await getSiteConfiguration(tenantId);
+
+      expect(result.frontend.site.name).toBe('Test E-Commerce Site');
+      expect(redis.setJSON).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('configurationMiddleware', () => {
+    let req: any;
+    let res: any;
+    let next: any;
+
+    beforeEach(() => {
+      req = { tenantConfig: {} };
+      res = {};
+      next = vi.fn();
+    });
+
+    it('should attach configuration and models to the request', async () => {
+      const mockConfig = {
+        backend: {
+          database: { name: 'tenant-db', url: 'mongodb://tenant-cluster' },
+          redis: { url: 'redis://tenant' }
+        }
+      };
+      vi.mocked(redis.getJSON).mockResolvedValue(mockConfig);
+
+      await configurationMiddleware(req as Request, res as Response, next);
+
+      expect(req.tenantConfig).toEqual(mockConfig);
+      expect(getTenantDb).toHaveBeenCalledWith(mockConfig);
+      expect(next).toHaveBeenCalledWith();
+    });
+
+    it('should return an AppError to next if the database configuration is incomplete', async () => {
+      const incompleteConfig = {
+        backend: {
+          database: {
+            url: 'mongodb://localhost:27017'
+            // 'name' is missing
+          }
+        }
+      };
+
+      vi.mocked(redis.getJSON).mockResolvedValue(incompleteConfig);
+
+      await configurationMiddleware(req as Request, res as Response, next);
+
+      // 1. Verify getTenantDb was NEVER called (The guard worked)
+      expect(getTenantDb).not.toHaveBeenCalled();
+
+      // 2. Verify the error was passed to next
+      const passedError = next.mock.calls[0][0];
+      expect(passedError).toBeInstanceOf(AppError);
+      expect(passedError.message).toContain('Database configuration (name or url) missing');
+      expect(passedError.statusCode).toBe(StatusCodes.INTERNAL_SERVER_ERROR);
+    });
+
+    it('should fallback to an empty object if backend.database is missing and throw 500', async () => {
+      // 1. Mock a config missing the 'backend' property entirely
+      const emptyConfig = {
+        tenantId: 'empty-tenant',
+        // backend: undefined (this triggers the fallback)
+      };
+
+      vi.mocked(redis.getJSON).mockResolvedValue(emptyConfig);
+
+      // 2. Execute the middleware
+      await configurationMiddleware(req as Request, res as Response, next);
+
+      // 3. Verify the logic:
+      const passedError = next.mock.calls[0][0];
+      expect(passedError).toBeInstanceOf(AppError);
+      expect(passedError.statusCode).toBe(StatusCodes.INTERNAL_SERVER_ERROR);
+      expect(passedError.message).toContain('Database configuration (name or url) missing');
+    });
+
+    it('should catch AppErrors and pass them directly to next', async () => {
+      const specificError = new AppError('Tenant Not Found', StatusCodes.NOT_FOUND);
+      vi.mocked(systemUtils.getTenantId).mockImplementation(() => {
+        throw specificError;
+      });
+
+      await configurationMiddleware(req as Request, res as Response, next);
+
+      // Verify the original error was passed without being wrapped again
+      expect(next).toHaveBeenCalledWith(specificError);
+      expect(next.mock.calls[0][0].statusCode).toBe(404);
+    });
+
+    it('should wrap generic errors in a 500 AppError', async () => {
+      // 1. Ensure the first line of the middleware succeeds
+      vi.mocked(systemUtils.getTenantId).mockReturnValue('test-tenant');
+
+      // 2. Mock the rejection in the second line (getSiteConfiguration -> redis)
+      const genericError = new Error('Database Explosion');
+      vi.mocked(redis.getJSON).mockRejectedValue(genericError);
+
+      await configurationMiddleware(req as Request, res as Response, next);
+
+      const passedError = next.mock.calls[0][0];
+
+      expect(passedError).toBeInstanceOf(AppError);
+      expect(passedError.statusCode).toBe(StatusCodes.INTERNAL_SERVER_ERROR); // 500
+      expect(passedError.message).toBe('Database Explosion');
+    });
+
+    it('should handle non-error throws by defaulting to "Internal Server Error"', async () => {
+      // 1. Ensure the first line of the middleware succeeds
+      vi.mocked(systemUtils.getTenantId).mockReturnValue('test-tenant');
+
+      // 2. Mock the rejection
+      vi.mocked(redis.getJSON).mockRejectedValue("Something went wrong");
+
+      await configurationMiddleware(req as Request, res as Response, next);
+
+      const passedError = next.mock.calls[0][0];
+      expect(passedError.statusCode).toBe(StatusCodes.INTERNAL_SERVER_ERROR);
+      expect(passedError.message).toBe('Internal Server Error');
+    });
+  });
+});

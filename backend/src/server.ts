@@ -9,7 +9,7 @@ import {
   notFoundHandler,
 } from "./middleware/index.js";
 import { closeAllRedis } from "./services/tenantRedis.js";
-import redis from './services/redis.js';
+import Redis from './services/redis.js';
 
 import routes from './routes.js';
 import { logger as systemLogger } from './utils/logging/index.js';
@@ -22,7 +22,7 @@ try {
   // Concurrent startup for performance
   await Promise.all([
     connectDB(),
-    redis.connect()
+    Redis.connect(),
   ]);
 } catch (err) {
   systemLogger.error({
@@ -39,7 +39,7 @@ app.set('trust proxy', true);
 let HOST: string = '0.0.0.0';
 // Trust Proxy settings
 if (process.env.NODE_ENV === 'development') {
-  // In dev, trust the Vite proxy so req.hostname works
+  // In dev, trust the Vite proxy so the req.hostname works
   HOST = '127.0.0.1';
 } else {
   // In production, trust only your real reverse proxy (e.g., Nginx, Cloudflare, ELB)
@@ -92,7 +92,7 @@ async function gracefulShutdown(signal: string): Promise<void> {
     try {
       // 2) Close external services concurrently
       await Promise.all([
-        redis.close(),
+        Redis.disconnect(),
         closeAllRedis(),
         disconnectDB(),
         clearAuth0Cache()

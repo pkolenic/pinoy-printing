@@ -1,5 +1,6 @@
 import colors from 'colors';
 import { DEBUG, INFO, WARNING, ERRORS } from './index.js';
+import { assertExhaustive } from "../errors/asserts.js";
 
 // Define valid color names supported by the library
 export type ColorName = keyof colors.Color;
@@ -7,12 +8,12 @@ export type ColorName = keyof colors.Color;
 interface LogOptions {
   message: string;
   color?: ColorName;
-  backgroundColor?: ColorName;
   args?: any[];
+  tenantId?: string;
 }
 
 class Logger {
-  private static instance: Logger;
+  private static instance: Logger | undefined;
   private readonly logLevel: string;
 
   // Centralize color mapping for the entire system
@@ -41,14 +42,50 @@ class Logger {
     return Logger.instance;
   }
 
+  /**
+   * Internal helper for testing to allow environment variable
+   * changes to be picked up between test cases.
+   */
+  public static _resetInstance(): void {
+    Logger.instance = undefined;
+  }
+
   private log(severity: 'error' | 'warn' | 'info' | 'debug', options: LogOptions): void {
     const {
       message,
       color = 'white',
-      backgroundColor = 'gray',
       args = [],
+      tenantId = 'system',
     } = options;
+
+    // 1. Determine if we should log based on the current level
+    const shouldLog =
+      (severity === 'error' && ERRORS.includes(this.logLevel)) ||
+      (severity === 'warn' && WARNING.includes(this.logLevel)) ||
+      (severity === 'info' && INFO.includes(this.logLevel)) ||
+      (severity === 'debug' && DEBUG.includes(this.logLevel));
+
+    if (!shouldLog) {
+      return;
+    }
+
     const timestamp = new Date().toISOString();
+
+    // 2. Handle Production JSON format
+    if (process.env.NODE_ENV === 'production') {
+      // Structured JSON logging
+      const logObject = {
+        timestamp: timestamp,
+        level: severity,
+        tenantId: tenantId,
+        message: message,
+        data: args,
+      };
+      console[severity === 'error' ? 'error' : 'log'](JSON.stringify(logObject));
+      return;
+    }
+
+    // 3. Handle Development Colored format (the rest of your existing code...)
     const rawMessage = `${timestamp} - ${message}`;
     // Apply color to the main message/label
     const coloredMessage = (colors as any)[color as ColorName](rawMessage);
@@ -72,26 +109,37 @@ class Logger {
     const coloredArgString = (colors as any)[color as ColorName](argString);
 
     // 4. Log to the console based on the severity check and respecting the log level settings
-    if (severity === 'error' && ERRORS.includes(this.logLevel)) {
-      console.info(coloredMessage);
-      processedArgs.forEach(arg => {
-        const coloredArg = (colors as any)[color as ColorName](`\t${arg.trim()}`);
-        console.info(coloredArg);
-      });
-    } else if (severity === 'warn' && WARNING.includes(this.logLevel)) {
-      console.warn(`${coloredMessage}${coloredArgString}`);
-    }
-    else if (severity === 'info' && INFO.includes(this.logLevel)) {
-      console.info(`${coloredMessage}${coloredArgString}`);
-    } else if (severity === 'debug' && DEBUG.includes(this.logLevel)) {
-      console.debug(`${coloredMessage}${coloredArgString}`);
+    switch (severity) {
+      case 'error':
+        console.error(coloredMessage);
+        processedArgs.forEach(arg => {
+          const coloredArg = (colors as any)[color as ColorName](`\t${arg.trim()}`);
+          console.error(coloredArg);
+        });
+        break;
+
+      case 'warn':
+        console.warn(`${coloredMessage}${coloredArgString}`);
+        break;
+
+      case 'info':
+        console.info(`${coloredMessage}${coloredArgString}`);
+        break;
+
+      case 'debug':
+        console.debug(`${coloredMessage}${coloredArgString}`);
+        break;
+
+      /* v8 ignore start */
+      default:
+        return assertExhaustive(severity);
+      /* v8 ignore stop */
     }
   }
 
   public error(options: LogOptions): void {
     this.log('error', {
       color: this.colors.ERROR,
-      backgroundColor: this.colors.ERROR_BACKGROUND,
       ...options
     });
   }
@@ -110,3 +158,4 @@ class Logger {
 }
 
 export const logger = Logger.getInstance();
+export { Logger }; // Export the class for testing access to _resetInstance

@@ -1,32 +1,34 @@
-import { RequestHandler } from 'express';
 import {
   FilterQuery,
   SortOrder,
   Types,
 } from "mongoose";
 import { StatusCodes } from "http-status-codes";
-
-import redis from '../services/redis.js';
 import { AppError } from '../utils/errors/index.js';
+import { AsyncRequestHandler } from "../utils/request.js";
 
 import {
   ICategory,
   ICategoryTree,
   ICategoryDocument,
-  getRelatedCategoryIds,
 } from '../models/index.js';
+import {
+  IUpdateCategoryRequest
+} from "../types/requests/index.js";
+import {
+  CATEGORY_TREE_CACHE_KEY,
+  CATEGORY_CACHE_TTL,
+} from '../constants/cache.js';
 
-import { paginateResponse } from "../utils/paginationHelper.js";
-
-const CATEGORY_TREE_CACHE_KEY = 'category_tree';
-const CATEGORY_CACHE_TTL = 3600;
+import { paginateResponse } from "../utils/pagination.js";
+import { parsePagination } from "../utils/controllers/queryHelper.js";
 
 /**
  * Create a new category
  * @route POST /api/categories
  * @permission create:categories
  */
-export const createCategory: RequestHandler = async (req, res, next) => {
+export const createCategory: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { name, parent } = req.body;
     const { Category } = req.tenantModels;
@@ -50,11 +52,10 @@ export const createCategory: RequestHandler = async (req, res, next) => {
  * @filter {Number} [limit=100] Maximum number of users returned (100 is the maximum)
  * @filter {Number} [page=1] Page number (1 is the first page)
  */
-export const getCategories: RequestHandler = async (req, res, next) => {
+export const getCategories: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { Category } = req.tenantModels;
-    const limit = parseInt(req.query.limit as string, 10) || 100;
-    const page = parseInt(req.query.page as string, 10) || 1;
+    const { limit, page, skip } = parsePagination(req);
 
     // Use FilterQuery<ICategory> to allow Mongoose-specific keys ($or, $text, etc.)
     const query: FilterQuery<ICategory> = {};
@@ -66,17 +67,16 @@ export const getCategories: RequestHandler = async (req, res, next) => {
     // Construct sort object with bracket notation
     const sort: { [key: string]: SortOrder } = { [sortField]: sortOrder };
 
-    const [categoryCount, categories] = await Promise.all([
+    const [count, categories] = await Promise.all([
       Category.countDocuments(query),
       Category.find(query)
         .sort(sort)
-        .skip((page - 1) * limit)
+        .skip(skip)
         .limit(limit)
         .lean<ICategory[]>(),
     ]);
 
-    const formattedResponse = paginateResponse<ICategory>(req, categories, categoryCount, page, limit);
-    res.status(StatusCodes.OK).json(formattedResponse);
+    res.status(StatusCodes.OK).json(paginateResponse<ICategory>(req, categories, count, page, limit));
   } catch (error) {
     next(error);
   }
@@ -87,13 +87,14 @@ export const getCategories: RequestHandler = async (req, res, next) => {
  * @route GET /api/categories/tree
  * @permission read:categories
  */
-export const getCategoryTree: RequestHandler = async (req, res, next) => {
+export const getCategoryTree: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { Category } = req.tenantModels;
     // 1. Check Redis Cache
     const cachedTree = await req.tenantRedis.getJSON<ICategoryTree[]>(CATEGORY_TREE_CACHE_KEY);
     if (cachedTree) {
-      return res.status(StatusCodes.OK).json(cachedTree);
+      res.status(StatusCodes.OK).json(cachedTree);
+      return;
     }
 
     // 2. Fetch Flat list from DB
@@ -146,14 +147,14 @@ export const getCategoryTree: RequestHandler = async (req, res, next) => {
  * @route GET /api/categories/:categoryId
  * @permission read:categories
  */
-export const getCategory: RequestHandler = async (req, res, next) => {
+export const getCategory: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { category } = req;
 
     if (!category) {
       return next(new AppError('Category not found', StatusCodes.NOT_FOUND));
     }
-    res.status(StatusCodes.OK).json(category.toObject());
+    res.status(StatusCodes.OK).json(category);
   } catch (error) {
     next(error);
   }
@@ -164,50 +165,31 @@ export const getCategory: RequestHandler = async (req, res, next) => {
  * @route DELETE /api/categories/:categoryId
  * @permission delete:categories
  */
-export const deleteCategory: RequestHandler = async (req, res, next) => {
+export const deleteCategory: AsyncRequestHandler = async (req, res, next) => {
   try {
-    const { Category, Product } = req.tenantModels;
-    // 1. Access the category attached by the createAttachMiddleware
+    const { Product } = req.tenantModels;
     const { category: categoryToDelete } = req;
 
     if (!categoryToDelete) {
       return next(new AppError('Category not found', StatusCodes.NOT_FOUND));
     }
 
-    // 2. Handle Orphaned Children: Find all direct children of the category being deleted
-    const directChildren = await Category.find({ parent: categoryToDelete._id });
+    // 1. PRODUCT CLEANUP
+    // We find all products pointing to this category and set them to its parent (or null)
+    const newParentId = categoryToDelete.get('parent') as Types.ObjectId | null;
 
-    // Find the parent's ID of the category we're deleting (can be null if it's a root category)
-    const newParentId = categoryToDelete.parent;
-
-    // Update the direct children to point to their new parent
-    if (directChildren.length > 0) {
-      // Map over children, update parent, and save.
-      // The PRE-SAVE hook will now see 'parent' is modified and fix the 'path'.
-      // The POST-SAVE hook will then see the fixed 'path' and find the grandchildren.
-      await Promise.all(
-        directChildren.map((child) => {
-          child.parent = newParentId;
-          return child.save();
-        })
-      );
-    }
-
-    // 3. Handle Related Products: Remove the deleted category from any products' category arrays
     await Product.updateMany(
-      { categories: categoryToDelete._id },
-      { $pull: { categories: categoryToDelete._id } }
+      { category: categoryToDelete._id },
+      { $set: { category: newParentId } }
     );
 
-    // The Product pre-save hook handles the hierarchy logic, but we need to ensure the product documents reflect the removal
-
-    // 4. Delete the category itself from Mongo DB
+    // 2. DELETE the category
     await categoryToDelete.deleteOne();
 
-    // 5. Invalidate the category tree cache
+    // 3. CACHE PURGE
     await req.tenantRedis.del(CATEGORY_TREE_CACHE_KEY);
 
-    // 6. Send 204 No Content
+    // Send 204 No Content Response
     res.status(StatusCodes.NO_CONTENT).end();
   } catch (error) {
     next(error);
@@ -219,76 +201,52 @@ export const deleteCategory: RequestHandler = async (req, res, next) => {
  * @route PUT /api/categories/:categoryId
  * @permission update:categories
  */
-export const updateCategory: RequestHandler = async (req, res, next) => {
+export const updateCategory: AsyncRequestHandler = async (req, res, next) => {
   try {
-    const { Category, Product } = req.tenantModels;
-    const { name, parent } = req.body;
-    const dbUpdates: Partial<ICategory> = {};
-
-    // Access the category attached by the createAttachMiddleware
+    const { Category } = req.tenantModels;
+    const { name, parent } = req.body as IUpdateCategoryRequest;
     const { category } = req;
 
     if (!category) {
       return next(new AppError('Category not found', StatusCodes.NOT_FOUND));
     }
 
-    // Ensure a valid parent is being set
+    // 1. Handle Parent Changes
     if (parent !== undefined) {
-      // Check if trying to set self to parent
+      // Prevent self-parenting
       if (parent === category._id.toString()) {
-        return next(new AppError('Cannot set a category to be its own parent', StatusCodes.BAD_REQUEST));
+        return next(new AppError('A category cannot be its own parent', StatusCodes.BAD_REQUEST));
       }
 
-      // Check if trying to set a descendant as the parent
       if (parent !== null) {
-        // Validate format BEFORE querying the DB
         if (!Types.ObjectId.isValid(parent)) {
           return next(new AppError('Invalid parent ID format', StatusCodes.BAD_REQUEST));
         }
 
-        const potentialParent = await Category.findById(parent);
-        if (potentialParent && potentialParent.path.startsWith(`${category.path}/`)) {
+        // Prevent moving under a descendant (would break the tree)
+        const potentialParent = await Category.findById(parent).lean();
+        if (potentialParent?.path.startsWith(`${category.path}/`)) {
           return next(new AppError('A category cannot have its own descendant as a parent', StatusCodes.BAD_REQUEST));
         }
+        category.set('parent', new Types.ObjectId(parent));
+      } else {
+        category.parent = null; // Move to root
       }
-
-      dbUpdates['parent'] = parent;
     }
+
+    // 2. Handle Name Changes
     if (name) {
-      dbUpdates['name'] = name;
+      category.name = name;
     }
-    category.set(dbUpdates);
 
-    const isHierarchyChanging = category.isModified('parent') || category.isModified('name');
-
-    // Save the category
-    // This triggers the pre-save (path/slug logic) and post-save (descendant path updates)
+    // 3. Save triggers the Materialized Path hooks (Pre & Post)
     await category.save();
 
-    // If the hierarchy changed, we must update all Products that use this category or its descendants
-    if (isHierarchyChanging) {
-      // Find all categories affected (the category itself + all descendants)
-      const affectedCategoryIds = await getRelatedCategoryIds(Category, category.slug);
-
-      // Find all products that contain any of these categories
-      const productsToUpdate = await Product.find({
-        categories: { $in: affectedCategoryIds }
-      });
-
-      // Trigger the Product pre-save hook for each product to recalculate its category array
-      // We use Promise.all for parallel saves
-      await Promise.all(productsToUpdate.map(product => {
-        // FORCE the hook to run by marking the field as dirty
-        product.markModified('categories');
-        return product.save();
-      }));
-    }
-
-    // Invalidate the category tree cache
+    // 4. Invalidate Cache
     await req.tenantRedis.del(CATEGORY_TREE_CACHE_KEY);
 
     res.status(StatusCodes.OK).json(category);
   } catch (error) {
     next(error);
   }
-}
+};

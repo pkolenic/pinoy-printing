@@ -1,7 +1,7 @@
-import { RequestHandler } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { StatusCodes } from "http-status-codes";
 import { AppError } from "../utils/errors/index.js";
-import redis from '../services/redis.js';
+import Redis from '../services/redis.js';
 import { getTenantRedis } from "../services/tenantRedis.js";
 import { getEnv, getTenantId } from "../utils/system.js";
 import { ISiteConfigurationDocument } from "../models/index.js";
@@ -9,14 +9,13 @@ import { getTenantDb, SiteConfiguration, } from "../services/db.js";
 import { getTenantModels } from "../types/tenantContext.js";
 
 
-const getSiteConfiguration = async (tenantId: string): Promise<ISiteConfigurationDocument> => {
+export const getSiteConfiguration = async (tenantId: string): Promise<ISiteConfigurationDocument> => {
+  const redis = await Redis.getInstance();
   let siteConfig = await redis.getJSON(`site-config:${tenantId}`) as ISiteConfigurationDocument;
 
   // On a cache miss, fetch from the database
   if (!siteConfig) {
     siteConfig = await SiteConfiguration.findOne({ tenantId }) as ISiteConfigurationDocument;
-    await redis.setJSON(`site-config:${tenantId}`, siteConfig, 60 * 10); // Cache for 10 minutes - TODO - once we can edit configurations in the dashboard remove the ttl
-
     if (!siteConfig) {
       // Hydrate the siteConfig using the default values
       siteConfig = {
@@ -55,7 +54,7 @@ const getSiteConfiguration = async (tenantId: string): Promise<ISiteConfiguratio
         backend: {
           database: {
             name: getEnv(process.env.MONGO_DB, ''),
-            url: getEnv(process.env.MONGO_URI, ''),
+            url: getEnv(process.env.MONGO_URL, ''),
           },
           redis: {
             url: getEnv(process.env.TENANT_REDIS_URI || process.env.REDIS_URI, ''),
@@ -71,15 +70,18 @@ const getSiteConfiguration = async (tenantId: string): Promise<ISiteConfiguratio
           settings: {
             requireAuthentication: getEnv(process.env.REQUIRE_AUTHENTICATION, false),
           },
+          static: {
+            favIcon: getEnv(process.env.FAVICON, ''),
+          },
         },
       } as ISiteConfigurationDocument;
-      await redis.setJSON(`site-config:${tenantId}`, siteConfig, 60 * 10); // Cache for 10 minutes - TODO - once we can edit configurations in the dashboard remove the ttl
     }
+    await redis.setJSON(`site-config:${tenantId}`, siteConfig, 60 * 10); // Cache for 10 minutes - TODO - once we can edit configurations in the dashboard remove the ttl
   }
   return siteConfig;
 }
 
-export const configurationMiddleware: RequestHandler = async (req, _res, next) => {
+export const configurationMiddleware = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
   try {
     const tenantId = getTenantId(req);
 
@@ -87,8 +89,17 @@ export const configurationMiddleware: RequestHandler = async (req, _res, next) =
     let tenantConfig = await getSiteConfiguration(tenantId);
     req.tenantConfig = tenantConfig;
 
+    const { name: dbName, url: tenantUrl } = tenantConfig.backend?.database || {};
+    // Explicit validation before calling services
+    if (!dbName || !tenantUrl) {
+      return next(new AppError(
+        `Database configuration (name or url) missing for tenant: ${tenantId}`,
+        StatusCodes.INTERNAL_SERVER_ERROR
+      ));
+    }
+
     // getTenantDb returns the connection (cached internally)
-    const tenantDb = getTenantDb(tenantConfig?.backend?.database?.name || 'default');
+    const tenantDb = await getTenantDb(tenantConfig);
     req.tenantModels = getTenantModels(tenantDb);
 
     // Attach the tenant redis to the request object

@@ -1,8 +1,8 @@
-import { RequestHandler } from "express";
+import { AsyncRequestHandler } from "../utils/request.js";
 import { AppError } from "../utils/errors/index.js";
 import { StatusCodes } from "http-status-codes";
 
-export const getSiteConfiguration: RequestHandler = async (req, res, next) => {
+export const getSiteConfiguration: AsyncRequestHandler = async (req, res, next) => {
   try {
     if (!req.tenantConfig) {
       return next(new AppError('Site Configuration not found', StatusCodes.NOT_FOUND));

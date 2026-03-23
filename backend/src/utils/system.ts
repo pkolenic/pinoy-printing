@@ -4,24 +4,26 @@ import slugify from '@sindresorhus/slugify';
 /**
  * Gets a process.env value and casts it to the desired type.
  * Supports: 'string' | 'number' | 'boolean'
+ * @param value - The name of the environment value.
+ * @param fallbackValue - The default value to return if the value is not set, also sets the return type.
  */
 export const getEnv = <T extends string | number | boolean>(
   value: string | undefined,
-  defaultValue: T
+  fallbackValue: T
 ): T => {
   if (value === undefined || value === "") {
-    return defaultValue;
+    return fallbackValue;
   }
 
   // Infer boolean
-  if (typeof defaultValue === 'boolean') {
+  if (typeof fallbackValue === 'boolean') {
     return /^true$/i.test(value) as unknown as T;
   }
 
   // Infer number
-  if (typeof defaultValue === 'number') {
+  if (typeof fallbackValue === 'number') {
     const parsed = Number(value);
-    return (isNaN(parsed) ? defaultValue : parsed) as unknown as T;
+    return (isNaN(parsed) ? fallbackValue : parsed) as unknown as T;
   }
 
   // Fallback to string
@@ -30,14 +32,14 @@ export const getEnv = <T extends string | number | boolean>(
 
 export const getTargetHostname = (req: Request): string => {
   // Check for the override first (useful for Dev and potentially QA/Preview environments)
-  const siteOverride = req.query.SITE as string;
+  const siteOverride = req.query?.SITE as string;
 
   if (process.env.NODE_ENV === 'development' && siteOverride) {
-    return siteOverride;
+    return siteOverride.toLowerCase();
   }
 
   // Fallback to standard hostname
-  return req.hostname;
+  return req.hostname.toLowerCase();
 };
 
 export const getTenantId = (req: Request): string => {

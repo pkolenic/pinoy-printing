@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler", // Vitest/Vite acts as the bundler here
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["src/**/*", "**/*.test.ts"],
+  "exclude": []
+}

@@ -51,6 +51,9 @@ export interface IBackendConfig {
   settings: {
     requireAuthentication: boolean;
   };
+  static: {
+    favIcon: string;
+  }
 }
 
 export interface ISiteConfiguration {
@@ -116,6 +119,9 @@ export const SiteConfigurationSchema = new Schema<ISiteConfiguration>({
     },
     settings: {
       requireAuthentication: { type: Boolean, required: true, default: false },
+    },
+    static: {
+      favIcon: { type: String, required: false },
     },
   },
 }, { timestamps: true });
