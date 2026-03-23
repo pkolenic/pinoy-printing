@@ -39,7 +39,7 @@ app.set('trust proxy', true);
 let HOST: string = '0.0.0.0';
 // Trust Proxy settings
 if (process.env.NODE_ENV === 'development') {
-  // In dev, trust the Vite proxy so req.hostname works
+  // In dev, trust the Vite proxy so the req.hostname works
   HOST = '127.0.0.1';
 } else {
   // In production, trust only your real reverse proxy (e.g., Nginx, Cloudflare, ELB)
