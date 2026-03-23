@@ -132,7 +132,7 @@ describe('Product Controller', () => {
 
       (matchedData as any).mockReturnValue(validData);
 
-      await (createProduct as any)(req, res, next);
+      await createProduct(req, res, next);
 
       // Verify the model was instantiated with the correct data
       expect(mockProductModel).toHaveBeenCalledWith(expect.objectContaining({
@@ -155,7 +155,7 @@ describe('Product Controller', () => {
 
       (matchedData as any).mockReturnValue({});
 
-      await (createProduct as any)(req, res, next);
+      await createProduct(req, res, next);
       expect(next).toHaveBeenCalledWith(error);
     });
   });
@@ -204,7 +204,7 @@ describe('Product Controller', () => {
 
     it('should default to empty permissions if auth payload is missing', async () => {
       delete req.auth; // Force the || [] branch
-      await (getProducts as any)(req, res, next);
+      await getProducts(req, res, next);
       expect(Models.sanitizeProduct).toHaveBeenCalledWith(expect.anything(), false);
     });
 
@@ -212,7 +212,7 @@ describe('Product Controller', () => {
       req.query.category = 'fake-category';
       vi.mocked(Models.getRelatedCategoryIds).mockResolvedValue([]);
 
-      await (getProducts as any)(req, res, next);
+      await getProducts(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(StatusCodes.OK);
       expect(mockProductModel.find).not.toHaveBeenCalled();
@@ -226,7 +226,7 @@ describe('Product Controller', () => {
       const mockIds = [new Types.ObjectId(), new Types.ObjectId()];
       vi.mocked(Models.getRelatedCategoryIds).mockResolvedValue(mockIds);
 
-      await (getProducts as any)(req, res, next);
+      await getProducts(req, res, next);
 
       expect(mockProductModel.find).toHaveBeenCalledWith(expect.objectContaining({
         category: { $in: mockIds }
@@ -236,7 +236,7 @@ describe('Product Controller', () => {
     it('should build a filter with both min and max price', async () => {
       req.query = { minPrice: 10, maxPrice: 100 };
 
-      await (getProducts as any)(req, res, next);
+      await getProducts(req, res, next);
 
       expect(mockProductModel.find).toHaveBeenCalledWith(expect.objectContaining({
         price: { $gte: 10, $lte: 100 }
@@ -246,7 +246,7 @@ describe('Product Controller', () => {
     it('should build a filter with only minPrice', async () => {
       req.query = { minPrice: 10 };
 
-      await (getProducts as any)(req, res, next);
+      await getProducts(req, res, next);
 
       expect(mockProductModel.find).toHaveBeenCalledWith(expect.objectContaining({
         price: { $gte: 10 }
@@ -259,7 +259,7 @@ describe('Product Controller', () => {
     it('should filter by maxPrice only', async () => {
       req.query = { maxPrice: 100 }; // Test the second half of the spread
 
-      await (getProducts as any)(req, res, next);
+      await getProducts(req, res, next);
 
       expect(mockProductModel.find).toHaveBeenCalledWith(expect.objectContaining({
         price: { $lte: 100 }
@@ -269,7 +269,7 @@ describe('Product Controller', () => {
     it('should apply regex search on name and sku', async () => {
       req.query.search = 'denim';
 
-      await (getProducts as any)(req, res, next);
+      await getProducts(req, res, next);
 
       expect(mockProductModel.find).toHaveBeenCalledWith(expect.objectContaining({
         $or: [
@@ -283,7 +283,7 @@ describe('Product Controller', () => {
       req.auth.payload.permissions = ['read:inventory'];
       req.query.sortBy = 'quantityAvailable';
 
-      await (getProducts as any)(req, res, next);
+      await getProducts(req, res, next);
 
       // Verify buildSort was called with staff-allowed fields
       expect(QueryHelper.buildSort).toHaveBeenCalledWith(
@@ -299,7 +299,7 @@ describe('Product Controller', () => {
       req.query.sortBy = 'price';
 
       // 2. Act
-      await (getProducts as any)(req, res, next);
+      await getProducts(req, res, next);
 
       // 3. Assert:
       // We expect buildSort to have been called with:
@@ -317,7 +317,7 @@ describe('Product Controller', () => {
     it('should filter by quantityAvailable when maxInventory is provided', async () => {
       req.query.maxInventory = 20;
 
-      await (getProducts as any)(req, res, next);
+      await getProducts(req, res, next);
 
       expect(mockProductModel.find).toHaveBeenCalledWith(expect.objectContaining({
         quantityAvailable: { $lte: 20 }
@@ -328,7 +328,7 @@ describe('Product Controller', () => {
       const error = new Error('DB Fail');
       mockProductModel.countDocuments.mockRejectedValue(error);
 
-      await (getProducts as any)(req, res, next);
+      await getProducts(req, res, next);
 
       expect(next).toHaveBeenCalledWith(error);
     });
@@ -365,7 +365,7 @@ describe('Product Controller', () => {
       const sanitized = { name: 'Test Product', sku: '123' };
       vi.mocked(Models.sanitizeProduct).mockReturnValue(sanitized as any);
 
-      await (getProduct as any)(req, res, next);
+      await getProduct(req, res, next);
 
       // Verify sanitizer was called with isStaff = false
       expect(Models.sanitizeProduct).toHaveBeenCalledWith(expect.any(Object), false);
@@ -376,7 +376,7 @@ describe('Product Controller', () => {
     it('should return sanitized product for staff user', async () => {
       req.auth.payload.permissions = ['read:inventory'];
 
-      await (getProduct as any)(req, res, next);
+      await getProduct(req, res, next);
 
       // Verify sanitizer was called with isStaff = true
       expect(Models.sanitizeProduct).toHaveBeenCalledWith(expect.any(Object), true);
@@ -385,7 +385,7 @@ describe('Product Controller', () => {
     it('should call next with AppError if product is missing', async () => {
       req.product = undefined;
 
-      await (getProduct as any)(req, res, next);
+      await getProduct(req, res, next);
 
       // Check if next was called with an error (adjust based on your AppError implementation)
       expect(next).toHaveBeenCalledWith(expect.objectContaining({
@@ -400,7 +400,7 @@ describe('Product Controller', () => {
       // Force the populate method to reject
       mockProduct.populate.mockRejectedValueOnce(error);
 
-      await (getProduct as any)(req, res, next);
+      await getProduct(req, res, next);
 
       // This will verify line 150 is reached
       expect(next).toHaveBeenCalledWith(error);
@@ -410,7 +410,7 @@ describe('Product Controller', () => {
       // 1. Scenario: req.auth is undefined
       delete req.auth;
 
-      await (getProduct as any)(req, res, next);
+      await getProduct(req, res, next);
 
       // isStaff should be false because permissions defaulted to []
       expect(Models.sanitizeProduct).toHaveBeenCalledWith(expect.any(Object), false);
@@ -421,7 +421,7 @@ describe('Product Controller', () => {
       // 2. Scenario: req.auth exists, but payload.permissions are undefined
       req.auth = { payload: {} };
 
-      await (getProduct as any)(req, res, next);
+      await getProduct(req, res, next);
 
       // isStaff should be false
       expect(Models.sanitizeProduct).toHaveBeenCalledWith(expect.any(Object), false);
@@ -463,7 +463,7 @@ describe('Product Controller', () => {
       // Simulate express-validator returning only the clean data
       vi.mocked(matchedData).mockReturnValue(validatedUpdates);
 
-      await (updateProduct as any)(req, res, next);
+      await updateProduct(req, res, next);
 
       // Verify the set method was called with the body
       expect(matchedData).toHaveBeenCalledWith(req);
@@ -478,7 +478,7 @@ describe('Product Controller', () => {
     it('should return 404 if product is missing from request', async () => {
       req.product = undefined;
 
-      await (updateProduct as any)(req, res, next);
+      await updateProduct(req, res, next);
 
       expect(next).toHaveBeenCalledWith(expect.objectContaining({
         message: 'Product not found',
@@ -491,7 +491,7 @@ describe('Product Controller', () => {
       vi.mocked(matchedData).mockReturnValue({ name: 'fail' });
       mockProduct.save.mockRejectedValueOnce(error);
 
-      await (updateProduct as any)(req, res, next);
+      await updateProduct(req, res, next);
 
       expect(next).toHaveBeenCalledWith(error);
     });
@@ -501,7 +501,7 @@ describe('Product Controller', () => {
       vi.mocked(matchedData).mockReturnValue({ name: 'fail' });
       mockProduct.populate.mockRejectedValueOnce(error);
 
-      await (updateProduct as any)(req, res, next);
+      await updateProduct(req, res, next);
 
       expect(next).toHaveBeenCalledWith(error);
     });
@@ -533,7 +533,7 @@ describe('Product Controller', () => {
     });
 
     it('should delete the product and return 204 No Content with no body', async () => {
-      await (deleteProduct as any)(req, res, next);
+      await deleteProduct(req, res, next);
 
       expect(mockProduct.deleteOne).toHaveBeenCalled();
       expect(res.status).toHaveBeenCalledWith(StatusCodes.NO_CONTENT);
@@ -546,7 +546,7 @@ describe('Product Controller', () => {
     it('should call next with 404 if product is missing', async () => {
       req.product = undefined;
 
-      await (deleteProduct as any)(req, res, next);
+      await deleteProduct(req, res, next);
 
       expect(next).toHaveBeenCalledWith(expect.objectContaining({
         message: 'Product not found',
@@ -558,7 +558,7 @@ describe('Product Controller', () => {
       const error = new Error('Database connection lost');
       mockProduct.deleteOne.mockRejectedValueOnce(error);
 
-      await (deleteProduct as any)(req, res, next);
+      await deleteProduct(req, res, next);
 
       expect(next).toHaveBeenCalledWith(error);
     });
@@ -611,7 +611,7 @@ describe('Product Controller', () => {
 
     it('should return 400 if no file is uploaded', async () => {
       delete req.file;
-      await (importProducts as any)(req, res, next);
+      await importProducts(req, res, next);
       expect(res.status).toHaveBeenCalledWith(StatusCodes.BAD_REQUEST);
     });
 
@@ -624,7 +624,7 @@ describe('Product Controller', () => {
       vi.mocked(Models.resolveCategory).mockResolvedValue(new Types.ObjectId() as any);
       vi.mocked(mockProductModel.findOne).mockResolvedValue(null);
 
-      await (importProducts as any)(req, res, next);
+      await importProducts(req, res, next);
 
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
         summary: expect.objectContaining({ created: 1 })
@@ -666,7 +666,7 @@ describe('Product Controller', () => {
       vi.mocked(Models.getCommitedStock).mockResolvedValue(5);
 
       // 2. Act: Run the controller
-      await (importProducts as any)(req, res, next);
+      await importProducts(req, res, next);
 
       // 3. Assert: Verify the logic
       // Extract the data passed to .set()
@@ -680,10 +680,10 @@ describe('Product Controller', () => {
       expect(updateData.name).toBe('Updated Item');
       expect(updateData.price).toBe(25.00);
 
-      // Ensure database was actually hit
+      // Ensure a database was actually hit
       expect(existingDoc.save).toHaveBeenCalled();
 
-      // Verify final response summary
+      // Verify the final response summary
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
         summary: expect.objectContaining({ updated: 1, errors: 0 })
       }));
@@ -698,7 +698,7 @@ describe('Product Controller', () => {
       vi.mocked(Models.resolveCategory).mockResolvedValue('cat-id-123' as any);
       vi.mocked(mockProductModel.findOne).mockResolvedValue({ sku: 'exists' });
 
-      await (importProducts as any)(req, res, next);
+      await importProducts(req, res, next);
 
       const response = vi.mocked(res.json).mock.calls[0][0];
       expect(response.summary.errors).toBe(1);
@@ -715,7 +715,7 @@ describe('Product Controller', () => {
       vi.mocked(Models.resolveCategory).mockResolvedValue(new Types.ObjectId() as any);
       vi.mocked(mockProductModel.findOne).mockResolvedValue(null);
 
-      await (importProducts as any)(req, res, next);
+      await importProducts(req, res, next);
 
       // Use .at(-1) to get the most recent instance if multiple rows were processed
       const productInstances = vi.mocked(mockProductModel).mock.results;
@@ -739,7 +739,7 @@ describe('Product Controller', () => {
       };
       vi.mocked(mockProductModel.findOne).mockResolvedValue(existingDoc);
 
-      await (importProducts as any)(req, res, next);
+      await importProducts(req, res, next);
 
       expect(existingDoc.set).not.toHaveBeenCalled();
       expect(existingDoc.save).not.toHaveBeenCalled();
@@ -754,7 +754,7 @@ describe('Product Controller', () => {
 
       vi.mocked(Models.resolveCategory).mockResolvedValue('cat-id-123' as any);
 
-      await (importProducts as any)(req, res, next);
+      await importProducts(req, res, next);
 
       expect(vi.mocked(res.json).mock.calls[0][0].summary.errors).toBe(1);
       expect(vi.mocked(res.json).mock.calls[0][0].results[0].status).toBe('error');
@@ -767,7 +767,7 @@ describe('Product Controller', () => {
       // Force resolveCategory to return null
       vi.mocked(Models.resolveCategory).mockResolvedValue(null as any);
 
-      await (importProducts as any)(req, res, next);
+      await importProducts(req, res, next);
 
       const response = vi.mocked(res.json).mock.calls[0][0];
       expect(response.summary.errors).toBe(1);
@@ -784,7 +784,7 @@ describe('Product Controller', () => {
         .mockRejectedValueOnce(new Error('Row 1 DB Fail'))
         .mockResolvedValueOnce(null); // Row 2 succeeds
 
-      await (importProducts as any)(req, res, next);
+      await importProducts(req, res, next);
 
       const response = vi.mocked(res.json).mock.calls[0][0];
       expect(response.summary.errors).toBe(1);
@@ -800,7 +800,7 @@ describe('Product Controller', () => {
         throw error;
       });
 
-      await (importProducts as any)(req, res, next);
+      await importProducts(req, res, next);
 
       // Now next should be called with the corruption error
       expect(next).toHaveBeenCalledWith(error);
@@ -813,7 +813,7 @@ describe('Product Controller', () => {
       // 2. TARGET THE DEFAULT EXPORT: Tell the controller the file is missing
       vi.mocked((fs as any).default.existsSync).mockReturnValueOnce(false);
 
-      await (importProducts as any)(req, res, next);
+      await importProducts(req, res, next);
 
       // 3. Assertions
       expect(res.status).toHaveBeenCalledWith(StatusCodes.OK);
